@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0a12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vampir Köylü">
+<meta name="description" content="Arkadaşlarla veya yapay zekâya karşı Vampir Köylü.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Vampir Köylü</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a12; --bg2:#15131f; --card:#1d1a2b; --card2:#262238;
+    --text:#ece7f5; --muted:#9b94b3; --blood:#c0202e; --blood2:#e23b4a;
+    --gold:#d9a441; --green:#3fb37f; --blue:#4f8de6; --line:#33304a;
+    --r:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  button,.pick{-webkit-user-select:none;user-select:none}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Nunito',system-ui,sans-serif;overscroll-behavior:none}
+  body{display:flex;flex-direction:column;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  #app{flex:1;display:flex;flex-direction:column;max-width:520px;width:100%;margin:0 auto;padding:16px}
+  h1,h2,.title{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0}
+  h1{font-size:34px;text-align:center;color:var(--blood2);text-shadow:0 0 24px rgba(226,59,74,.35)}
+  h2{font-size:22px;color:var(--gold)}
+  .sub{color:var(--muted);text-align:center;margin:6px 0 24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font:800 17px 'Nunito',sans-serif;color:#fff;background:var(--blood);cursor:pointer;margin-top:10px;transition:transform .08s,filter .15s}
+  .btn:active{transform:scale(.98);filter:brightness(1.15)}
+  .btn.sec{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+  .btn.gold{background:var(--gold);color:#1a1200}
+  .btn.green{background:var(--green);color:#03150c}
+  .btn.blue{background:var(--blue)}
+  .btn:disabled{opacity:.4;filter:none;transform:none;cursor:default}
+  .btn.sm{padding:10px 14px;font-size:14px;width:auto;display:inline-block;margin:0}
+  input{width:100%;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font:600 18px 'Nunito',sans-serif;outline:none;margin-top:8px}
+  input:focus{border-color:var(--gold)}
+  input.code{text-transform:uppercase;letter-spacing:8px;text-align:center;font-family:'Cinzel',serif;font-size:26px}
+  label{font-size:13px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:1px}
+  .row{display:flex;gap:10px;align-items:center}
+  .row>*{flex:1}
+  .codebox{text-align:center;padding:14px;border-radius:14px;background:var(--bg2);border:1px dashed var(--gold)}
+  .codebox .c{font-family:'Cinzel',serif;font-size:40px;letter-spacing:10px;color:var(--gold);font-weight:800}
+  .plist{list-style:none;padding:0;margin:10px 0 0}
+  .plist li{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--bg2);margin-bottom:8px;border:1px solid transparent}
+  .plist li.dead{opacity:.45;text-decoration:line-through}
+  .plist li.sel{border-color:var(--gold);background:#2a2335}
+  .plist li.me{border-color:var(--blue)}
+  .plist li .av{width:36px;height:36px;border-radius:50%;background:var(--card2);display:grid;place-items:center;font-weight:800;color:var(--gold);flex:none}
+  .plist li .nm{flex:1;font-weight:800;font-size:16px}
+  .plist li .tag{font-size:12px;color:var(--muted);font-weight:800}
+  .plist li .dot{width:9px;height:9px;border-radius:50%;background:var(--green);flex:none}
+  .plist li .dot.off{background:#666}
+  .plist li.pick{cursor:pointer}
+  .plist li .cnt{background:var(--blood);color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:800}
+  .rolecard{text-align:center;padding:30px 18px;border-radius:24px;border:2px solid var(--line);background:radial-gradient(ellipse at top,#2a2440,#15131f 70%)}
+  .rolecard .ic{font-size:84px;line-height:1;margin-bottom:12px;filter:drop-shadow(0 0 18px rgba(0,0,0,.6))}
+  .rolecard .rn{font-family:'Cinzel',serif;font-size:30px;font-weight:800}
+  .rolecard .rd{color:var(--muted);margin-top:10px;line-height:1.5}
+  .rolecard.vampir{border-color:var(--blood2)} .rolecard.vampir .rn{color:var(--blood2)}
+  .rolecard.doktor{border-color:var(--green)} .rolecard.doktor .rn{color:var(--green)}
+  .rolecard.kahin{border-color:var(--blue)} .rolecard.kahin .rn{color:var(--blue)}
+  .rolecard.koylu{border-color:var(--gold)} .rolecard.koylu .rn{color:var(--gold)}
+  .hidden{display:none}
+  .banner{text-align:center;padding:22px;border-radius:var(--r);margin-bottom:14px}
+  .banner.night{background:linear-gradient(135deg,#131a3a,#0b0a12);border:1px solid #2a3570}
+  .banner.day{background:linear-gradient(135deg,#4a3410,#1a1206);border:1px solid #7a5a1e}
+  .banner .big{font-size:56px;line-height:1}
+  .banner .t{font-family:'Cinzel',serif;font-size:22px;margin-top:6px}
+  .banner .d{color:var(--muted);margin-top:6px}
+  .timer{font-family:'Cinzel',serif;font-size:40px;text-align:center;color:var(--gold);margin:4px 0}
+  .timer.warn{color:var(--blood2)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#2a2335;color:#fff;padding:12px 18px;border-radius:12px;border:1px solid var(--gold);font-weight:800;z-index:99;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted);font-weight:800}
+  .topbar .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .topbar button{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 12px;font:800 13px 'Nunito',sans-serif}
+  .note{font-size:13px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.5}
+  .log{font-size:13px;color:var(--muted);max-height:120px;overflow:auto;line-height:1.6}
+  .fade{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .pulse{animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .ok{color:var(--green);font-weight:800}
+  .bad{color:var(--blood2);font-weight:800}
+  .moon{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 80% -10%,rgba(80,100,220,.18),transparent 45%);z-index:-1}
+  /* --- mod seçimi --- */
+  .mode{display:flex;gap:14px;align-items:center;text-align:left;padding:18px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);margin-bottom:12px;cursor:pointer;width:100%;color:var(--text);font-family:inherit}
+  .mode:active{filter:brightness(1.2)}
+  .mode .mi{font-size:40px;flex:none}
+  .mode .mt{font-family:'Cinzel',serif;font-size:18px;font-weight:800;color:var(--gold)}
+  .mode .md{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .mode.red .mt{color:var(--blood2)}
+  /* --- tek oyunculu --- */
+  .xpbar{height:8px;border-radius:999px;background:var(--bg2);overflow:hidden;margin-top:6px}
+  .xpbar div{height:100%;background:linear-gradient(90deg,var(--gold),#f3cf7a);transition:width .6s}
+  .lvls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}
+  .lvl{border:2px solid var(--line);background:var(--bg2);border-radius:14px;padding:8px 0 4px;color:var(--text);font-family:inherit;cursor:pointer}
+  .lvl .n{font-weight:800;font-size:17px}
+  .lvl .s{font-size:10px;color:var(--gold);letter-spacing:1px;min-height:12px}
+  .lvl.lock{opacity:.4;border-style:dashed}
+  .lvl.done{background:#2a2335}
+  .lvl.boss{background:linear-gradient(135deg,#3a2a10,#1d1a2b)}
+  .lvl:active{transform:scale(.95)}
+  .big{font-family:'Cinzel',serif;font-size:26px;font-weight:800;margin-top:2px}
+  .obj{padding:8px 12px;border-radius:10px;background:var(--bg2);margin-top:6px;font-weight:800;font-size:14px}
+  .obj.ok{color:var(--green)} .obj.bad{color:var(--muted)}
+  .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .acts .btn.sm{flex:1 1 40%}
+  .villagers{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .vp{background:var(--bg2);border-radius:999px;padding:5px 10px;font-size:13px;font-weight:800}
+  .feed{flex:1;min-height:180px;max-height:46vh;overflow-y:auto;padding:6px 2px;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+  .feed.small{max-height:26vh;min-height:100px}
+  .fsep{text-align:center;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:2px;margin:10px 0 6px;text-transform:uppercase}
+  .fnarr{text-align:center;color:var(--gold);font-size:13px;font-style:italic;margin:6px 0}
+  .fb{display:flex;gap:8px;margin:6px 0;align-items:flex-end}
+  .fb .fav{width:34px;height:34px;border-radius:50%;background:var(--card2);display:grid;place-items:center;font-size:18px;flex:none}
+  .fb .fbody{background:var(--card);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:8px 12px;max-width:82%;font-size:14px;line-height:1.4}
+  .fb .fname{font-size:11px;color:var(--muted);font-weight:800;margin-bottom:2px}
+  .fb.me{flex-direction:row-reverse} .fb.me .fbody{background:#2a2335;border-color:var(--blue);border-radius:14px 14px 4px 14px}
+  .fb.quiet .fbody{color:var(--muted);font-style:italic}
+  .stars{font-size:44px;letter-spacing:6px;margin-top:8px;color:#3a3550}
+  .stars span.on{color:var(--gold);text-shadow:0 0 18px rgba(217,164,65,.6)}
+  .stars.won span.on{animation:pop .5s both}
+  @keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.4)}100%{transform:scale(1);opacity:1}}
+  input[type=range]{padding:0;margin:6px 0 14px;accent-color:var(--gold);background:transparent;border:0}
+  /* --- köy sahnesi --- */
+  .game{display:flex;flex-direction:column;flex:1}
+  .vwrap{display:flex;justify-content:center;margin-bottom:8px}
+  .village{width:100%;max-height:50vh;height:auto;display:block;border-radius:18px;border:1px solid var(--line);background:#07050e;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .village .fig{will-change:transform}
+  .lines{min-height:58px;margin-bottom:8px;font-size:13px;line-height:1.4}
+  .lines .ln{padding:4px 10px;border-radius:10px;color:var(--muted);transition:opacity .3s}
+  .lines .ln.last{background:var(--card);color:var(--text);border:1px solid var(--line)}
+  .lines .ln.narr{color:var(--gold);font-style:italic}
+  .lines .ln.scream{color:var(--blood2);font-weight:800}
+  .tt{font-size:11px;color:var(--muted);font-weight:800;text-transform:none;letter-spacing:0}
+  .panelc{padding:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+  .chip{border:1px solid var(--line);background:var(--bg2);color:var(--text);border-radius:999px;padding:8px 12px;font:800 14px 'Nunito',sans-serif;cursor:pointer}
+  .chip.on{border-color:var(--gold);background:#3a2c14;color:#ffd98a}
+  .chip small{font-weight:600;color:var(--muted)}
+  .chip small.bad{color:var(--blood2)} .chip small.ok{color:var(--green)}
+  .logmodal{position:fixed;inset:0;background:rgba(5,3,10,.85);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+  .logmodal.hidden{display:none}
+  .login{background:var(--bg);border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:80vh;display:flex;flex-direction:column;padding:16px}
+  .logbody{overflow-y:auto;flex:1;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="moon"></div>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { createClient } from './supabase.js';
+import { mountSolo } from './solo.js';
+import { hostStart, hostHandle as mpHandle, newGameFields, createMultiUI, unlockAudio } from './multi.js';
+
+/* ================== AYARLAR ================== */
+const SUPABASE_URL = 'https://jqbokjkswdkhvdeegfbh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Vpnzl1uasuRis03GAQJIpg_PldkwGIP';
+const MIN_PLAYERS = 4;
+const DEFAULTS = { discussionSec: 120, voteSec: 60 };
+
+const ROLES = {
+  vampir: { name:'Vampir', ic:'🧛', desc:'Her gece diğer vampirlerle birlikte bir köylüyü seçip öldürürsünüz. Gündüz kimliğinizi gizleyin. Köylü sayısı vampir sayısına eşitlenince kazanırsınız.' },
+  doktor: { name:'Doktor', ic:'🩺', desc:'Her gece bir kişiyi korursun. Vampirler o kişiyi seçerse hayatta kalır. Kendini de koruyabilirsin.' },
+  kahin:  { name:'Kâhin',  ic:'🔮', desc:'Her gece bir kişiyi seçersin ve onun vampir olup olmadığını öğrenirsin. Bilgini akıllıca kullan.' },
+  koylu:  { name:'Köylü',  ic:'🧑‍🌾', desc:'Özel bir yeteneğin yok ama oyun sende biter. Tartış, şüphelen, doğru kişiyi as. Tüm vampirler asılınca kazanırsınız.' },
+};
+
+/* ================== YARDIMCILAR ================== */
+const $ = (s)=>document.querySelector(s);
+const app = $('#app');
+const uid = ()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const esc = (s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle = (a)=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const genCode = ()=>{const L='ABCDEFGHJKLMNPRSTUVYZ';let c='';for(let i=0;i<4;i++)c+=L[Math.floor(Math.random()*L.length)];return c;};
+let toastT; function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* ================== SES (ANLATICI) ================== */
+const voice = {
+  on: localStorage.getItem('vk_voice') === '1',
+  set(v){ this.on=v; localStorage.setItem('vk_voice', v?'1':'0'); },
+  speak(text){
+    if(!this.on || !('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang='tr-TR'; u.rate=0.92; u.pitch=0.85;
+      const v = speechSynthesis.getVoices().find(v=>v.lang && v.lang.toLowerCase().startsWith('tr'));
+      if(v) u.voice=v;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+};
+if('speechSynthesis' in window) speechSynthesis.getVoices();
+
+/* Ekranı açık tut */
+let wakeLock=null;
+async function keepAwake(){ try{ if('wakeLock' in navigator && !wakeLock){ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>wakeLock=null);} }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') keepAwake(); });
+
+/* ================== BAĞLANTI ================== */
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let channel=null;
+let me = { id: localStorage.getItem('vk_pid') || (()=>{const i=uid();localStorage.setItem('vk_pid',i);return i;})(), name: localStorage.getItem('vk_name')||'' };
+let isHost=false;
+let S=null;            // oyun durumu (herkes için)
+let screen='mode';     // mode | solo | home | join | game
+let joinTimeout=null;
+
+function connect(code, onReady){
+  if(channel){ supabase.removeChannel(channel); channel=null; }
+  channel = supabase.channel('vk-'+code, { config:{ broadcast:{ self:false, ack:false } } });
+  channel
+    .on('broadcast', {event:'action'}, ({payload})=>{ if(isHost) hostHandle(payload); })
+    .on('broadcast', {event:'state'},  ({payload})=>{ if(!isHost) applyState(payload); })
+    .on('broadcast', {event:'ping'},   ({payload})=>{ if(isHost && payload.code===S?.code) hostHandle({type:'hello', from:payload.from}); })
+    .subscribe((status)=>{ if(status==='SUBSCRIBED'){ onReady&&onReady(); } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){ toast('Bağlantı sorunu, tekrar deneniyor…'); } });
+}
+function send(action){
+  action.from = me.id;
+  if(isHost){ hostHandle(action); }
+  else if(channel){ channel.send({type:'broadcast', event:'action', payload:action}); }
+}
+let bcastT=null;
+function broadcast(){
+  if(!isHost||!channel) return;
+  S.ts=Date.now();
+  channel.send({type:'broadcast', event:'state', payload:S});
+  render();
+}
+
+/* ================== OYUN MANTIĞI (HOST) ================== */
+function newState(code){
+  const s={ code, hostId: me.id, players:[], settings:{...DEFAULTS}, log:[] };
+  newGameFields(s); return s;
+}
+const alive = (s)=>s.players.filter(p=>p.alive);
+const P = (s,id)=>s.players.find(p=>p.id===id);
+function roleCounts(n){ const v = n>=12?3 : n>=8?2 : 1; return { vampir:v, doktor:1, kahin:1, koylu:n-v-2 }; }
+
+function hostHandle(a){
+  if(!S) return;
+  const p = P(S,a.from);
+  switch(a.type){
+    case 'hello': case 'join': {
+      if(p){ p.connected=true; if(a.name) p.name=a.name; }
+      else if(S.phase==='lobby'){ S.players.push({id:a.from, name:a.name||'Oyuncu', alive:true, role:null, connected:true}); log(`${a.name} katıldı.`); }
+      else { /* oyun ortasında yeni oyuncu: izleyici olarak eklenmez, sadece state gönder */ }
+      break;
+    }
+    case 'leave': { if(S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.from); else if(p) p.connected=false; break; }
+    case 'kick': { if(a.from===S.hostId && S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.target); break; }
+    case 'settings': { if(a.from===S.hostId && S.phase==='lobby') S.settings={...S.settings,...a.settings}; break; }
+    case 'start': { if(a.from===S.hostId && S.phase==='lobby') hostStart(S); break; }
+    case 'restart': { if(a.from===S.hostId) restart(); break; }
+    default: mpHandle(S, a, mpCtx);
+  }
+  broadcast();
+}
+function log(t){ S.log.unshift(t); S.log=S.log.slice(0,40); }
+
+function restart(){ clearTimeout(hostTimer); const gid=S.gameId; newGameFields(S); S.gameId=gid; S.players.forEach(p=>{ p.role=null; p.alive=true; p.fate=null; }); }
+let hostTimer=null;
+const mpCtx={ broadcast:()=>broadcast(), armTimer:(end,fn)=>{ clearTimeout(hostTimer); hostTimer=setTimeout(fn, Math.max(0,end-Date.now())+200); }, clearTimer:()=>clearTimeout(hostTimer) };
+const mpUI=createMultiUI({ app, esc, voice, send:(a)=>send(a), toast, isHost:()=>isHost, meId:()=>me.id, onLeave:()=>leaveRoom() });
+function leaveRoom(){ send({type:'leave'}); if(channel){supabase.removeChannel(channel);channel=null;} S=null; isHost=false; mpUI.reset(); screen='mode'; render(); }
+
+/* ================== İSTEMCİ ================== */
+function applyState(s){
+  if(!s || (S && s.ts && S.ts && s.ts<S.ts)) return;
+  S=s; clearTimeout(joinTimeout); screen='game'; render();
+}
+
+/* ================== EKRANLAR ================== */
+let solo=null;
+function renderMode(){
+  app.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="fade">
+      <div style="text-align:center;font-size:84px;line-height:1;margin-bottom:8px">🧛</div>
+      <h1>VAMPİR KÖYLÜ</h1>
+      <p class="sub">Nasıl oynamak istersin?</p>
+      <div class="card" style="padding:12px 16px;margin-bottom:12px"><label>Adın</label><input id="mName" maxlength="14" placeholder="Örn: Ali" value="${esc(me.name)}"></div>
+      <button class="mode" id="mSolo"><span class="mi">🕯️</span><span><div class="mt">Tek Oyna</div><div class="md">Yapay zekâ köylülere karşı. 24 seviye, yıldızlar, rütbeler. İnternet gerekmez.</div></span></button>
+      <button class="mode red" id="mMulti"><span class="mi">👥</span><span><div class="mt">Arkadaşlarla Oyna</div><div class="md">Herkes kendi telefonundan. Biri oda açar, diğerleri koda girer.</div></span></button>
+    </div>`;
+  const saveName=()=>{ const n=$('#mName').value.trim(); if(n){ me.name=n; localStorage.setItem('vk_name',n); } return n; };
+  $('#mName').onchange=saveName;
+  $('#mSolo').onclick=()=>{ unlockAudio(); if(!saveName()){ toast('Önce adını yaz'); $('#mName').focus(); return; } voice.set(true); keepAwake(); if(!solo) solo=mountSolo({ app, esc, voice, toast, onExit:()=>{ screen='mode'; render(); } }); screen='solo'; solo.show(); };
+  $('#mMulti').onclick=()=>{ unlockAudio(); saveName(); screen='home'; render(); };
+}
+function render(){
+  if(screen==='mode') return renderMode();
+  if(screen==='solo') return; // solo kendi çizer
+  if(screen==='home') return renderHome();
+  if(screen==='create') return renderCreate();
+  if(screen==='join') return renderJoin();
+  if(screen==='game') return renderGame();
+}
+function renderHome(){
+  app.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="fade">
+      <div style="text-align:center;font-size:84px;line-height:1;margin-bottom:8px">🧛</div>
+      <h1>VAMPİR KÖYLÜ</h1>
+      <p class="sub">Arkadaşlarla oyna</p>
+      <div class="card">
+        <label>Adın</label>
+        <input id="name" maxlength="14" placeholder="Örn: Ali" value="${esc(me.name)}">
+        <button class="btn" id="bCreate">Oda Aç</button>
+        <button class="btn sec" id="bJoin">Odaya Katıl</button>
+      </div>
+      <button class="btn sec" id="bModeBack" style="margin-top:0">‹ Geri</button>
+      <p class="note">Oda açan telefon anlatıcı olur ve sesli konuşur.<br>Tüm telefonlar internete bağlı olmalı (Wi-Fi veya mobil veri).</p>
+    </div>`;
+  const nameEl=$('#name');
+  const getName=()=>{ const n=nameEl.value.trim(); if(!n){toast('Önce adını yaz');nameEl.focus();return null;} me.name=n; localStorage.setItem('vk_name',n); return n; };
+  $('#bModeBack').onclick=()=>{ screen='mode'; render(); };
+  $('#bCreate').onclick=()=>{ if(!getName()) return; createRoom(); };
+  $('#bJoin').onclick=()=>{ if(!getName()) return; screen='join'; render(); };
+}
+function createRoom(){
+  isHost=true; voice.set(true); keepAwake();
+  const code=genCode(); S=newState(code);
+  S.players.push({id:me.id,name:me.name,alive:true,role:null,connected:true});
+  screen='game'; render();
+  connect(code, ()=>broadcast());
+}
+function renderJoin(){
+  app.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="fade">
+      <h1 style="font-size:26px">ODAYA KATIL</h1>
+      <p class="sub">Oda açan arkadaşının ekranındaki 4 harfli kodu gir.</p>
+      <div class="card">
+        <label>Oda kodu</label>
+        <input id="code" class="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
+        <button class="btn" id="bGo">Katıl</button>
+        <button class="btn sec" id="bBack">Geri</button>
+      </div>
+    </div>`;
+  const c=$('#code'); c.focus();
+  $('#bBack').onclick=()=>{screen='home';render();};
+  $('#bGo').onclick=()=>{
+    const code=c.value.trim().toUpperCase(); if(code.length!==4){toast('4 harfli kod gir');return;}
+    isHost=false; voice.set(false); keepAwake();
+    $('#bGo').disabled=true; $('#bGo').textContent='Bağlanıyor…';
+    connect(code, ()=>{
+      send({type:'join', name:me.name});
+      joinTimeout=setTimeout(()=>{ toast('Oda bulunamadı. Kodu kontrol et.'); screen='join'; render(); }, 6000);
+    });
+  };
+}
+
+function topbar(){
+  const mine=P(S,me.id);
+  return `<div class="topbar">
+    <span class="pill">Oda <b style="color:var(--gold)">${S.code}</b></span>
+    <span class="pill">${S.phase==='lobby'?'Lobi':(S.day?('Gün '+S.day):'')}${mine&&mine.role&&S.phase!=='lobby'?' · '+ROLES[mine.role].ic:''}</span>
+    <button id="bVoice">${voice.on?'🔊 Ses açık':'🔇 Ses kapalı'}</button>
+  </div>`;
+}
+function bindTop(){ const b=$('#bVoice'); if(b) b.onclick=()=>{ voice.set(!voice.on); if(voice.on) voice.speak('Anlatıcı sesi açık.'); render(); }; }
+
+function renderGame(){
+  if(!S){ app.innerHTML='<p class="sub pulse">Bağlanıyor…</p>'; return; }
+  if(S.phase!=='lobby'){ mpUI.render(S); return; }
+  mpUI.reset();
+  app.innerHTML=`<div class="fade">${topbar()}${viewLobby()}</div>`;
+  bindTop(); bindGame(P(S,me.id));
+}
+
+const hostBtn=(label,cls='gold')=> isHost?`<button class="btn ${cls}" id="bNext">${label}</button>`:`<p class="note pulse">Anlatıcının (oda sahibi) devam etmesi bekleniyor…</p>`;
+const avatar=(p)=>`<span class="av">${esc(p.name[0].toUpperCase())}</span>`;
+
+function viewLobby(){
+  const n=S.players.length; const rc=roleCounts(Math.max(n,MIN_PLAYERS));
+  return `
+    <div class="codebox"><div style="font-size:12px;color:var(--muted);font-weight:800;letter-spacing:2px">ODA KODU</div><div class="c">${S.code}</div><div style="font-size:13px;color:var(--muted)">Arkadaşların bu kodla katılsın</div></div>
+    <div class="card">
+      <div class="row"><h2>Oyuncular</h2><span style="text-align:right;color:var(--muted);font-weight:800">${n} kişi</span></div>
+      <ul class="plist">${S.players.map(p=>`<li class="${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id===S.hostId?' <span class="tag">· anlatıcı</span>':''}</span>${isHost&&p.id!==me.id?`<button class="btn sm sec" data-kick="${p.id}">Çıkar</button>`:`<span class="dot ${p.connected?'':'off'}"></span>`}</li>`).join('')}</ul>
+      <p class="note">${n>=MIN_PLAYERS?`${n} kişi: <b>${rc.vampir} vampir</b>, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`:`Başlamak için en az ${MIN_PLAYERS} kişi gerekli (${MIN_PLAYERS-n} kişi daha).`}</p>
+    </div>
+    ${isHost?`
+    <div class="card">
+      <h2 style="font-size:16px">Süreler</h2>
+      <div class="row" style="margin-top:8px">
+        <div><label>Tartışma (sn)</label><input id="sDisc" type="number" inputmode="numeric" value="${S.settings.discussionSec}"></div>
+        <div><label>Seçim/oy (sn)</label><input id="sVote" type="number" inputmode="numeric" value="${S.settings.voteSec}"></div>
+      </div>
+    </div>
+    <button class="btn" id="bStart" ${n<MIN_PLAYERS?'disabled':''}>Oyunu Başlat</button>`
+    :`<p class="note pulse">Anlatıcının oyunu başlatması bekleniyor…</p>`}
+    <button class="btn sec" id="bLeave">Odadan Ayrıl</button>`;
+}
+function bindGame(mine){
+  const q=(s)=>$(s);
+  const saveSettings=()=>send({type:'settings',settings:{discussionSec:Math.max(15,+q('#sDisc').value||120), voteSec:Math.max(15,+q('#sVote').value||60)}});
+  q('#sDisc')&&(q('#sDisc').onchange=saveSettings); q('#sVote')&&(q('#sVote').onchange=saveSettings);
+  q('#bStart')&&(q('#bStart').onclick=()=>{ unlockAudio(); saveSettings(); send({type:'start'}); });
+  q('#bLeave')&&(q('#bLeave').onclick=()=>leaveRoom());
+  document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>send({type:'kick',target:b.dataset.kick}));
+}
+/* ================== PWA ================== */
+if('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.hostname)){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+/* iOS Safari: sesler geç yüklenir */
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+
+/* ================== BAŞLAT ================== */
+window.addEventListener('beforeunload',()=>{ if(channel&&!isHost) send({type:'leave'}); });
+render();
+</script>
+</body>
+</html>
