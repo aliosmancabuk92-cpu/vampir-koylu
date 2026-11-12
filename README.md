@@ -11,6 +11,11 @@ Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir
 - `index.html`  — giriş, çok oyunculu mod, ses
 - `src/solo-engine.js` — tek oyunculu motor (bot zekâsı, şüphe modeli, seviyeler)
 - `src/solo-ui.js` — tek oyunculu arayüz (harita, oyun ekranları, kayıt)
+- `src/multi.js` — odalı mod: host mantığı + köy sahneli ekranlar
+- `src/village.js` — köy sahnesi (evler, meydan, dar ağacı, kazık, figürler)
+- `src/scene.js` — sahne oynatıcı (olay sırası, baloncuk, sesli okuma)
+- `src/sfx.js` — sentezlenmiş ses efektleri (telifsiz)
+- `src/lines.js` — şiveli replik havuzu (sert mod / yumuşak mod)
 - `www/`        — APK'ya giren kopya (`index.html` + `supabase.js`)
 - `android/`    — Capacitor Android projesi
 - `test/`       — headless Chrome ile 4 oyunculu otomatik testler
@@ -20,6 +25,7 @@ Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir
 npm install
 npx esbuild src/sb-entry.js --bundle --format=esm --minify --outfile=www/supabase.js
 npx esbuild src/solo-ui.js --bundle --format=esm --minify --outfile=www/solo.js
+npx esbuild src/multi.js --bundle --format=esm --minify --outfile=www/multi.js
 cp index.html www/index.html
 npx cap sync android
 cd android && ./gradlew assembleDebug      # çıktı: android/app/build/outputs/apk/debug/app-debug.apk
@@ -30,9 +36,8 @@ Android Studio ile `android/` klasörünü açıp **Build > Build APK** de yapı
 ## Testler
 ```bash
 node test/sim.mjs 300  # her seviye 300 oyun: denge raporu
-node test/solo-e2e.mjs # tek oyunculu tam akış (headless Chrome)
-node test/e2e.mjs    # çok oyunculu tam tur: köylüler kazanır
-node test/e2e2.mjs   # doktor kurtarır, berabere oy, vampirler kazanır
+node test/village-shots.mjs  # tek oyunculu tam akış + ekran görüntüleri
+node test/mp-e2e.mjs        # odalı mod, 4 oyuncu: bırakma, gece, kazık, yeni oyun
 ```
 
 ## Roller

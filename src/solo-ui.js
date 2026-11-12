@@ -2,6 +2,10 @@
    VAMPİR KÖYLÜ — Tek oyunculu arayüz
    ===================================================================== */
 import { SoloGame, LEVELS, CHAPTERS, ROLE_INFO, objectiveText, rankFor, xpFor, RANKS, makeRng } from './solo-engine.js';
+import { createVillage } from './village.js';
+import { createScene } from './scene.js';
+import { setHardMode } from './lines.js';
+import SFX from './sfx.js';
 
 const ROLE_DESC = {
   vampir:'Her gece bir kurban seçersin. Gündüz masum rolü yap, kâhini erken yok et. Köylü sayısı vampirlere eşitlenince kazanırsın.',
@@ -14,7 +18,8 @@ const SAVE_KEY='vk_solo_v1';
 export function mountSolo(ctx){
   const { app, esc, voice, toast, onExit } = ctx;
   let save=load();
-  let screen='map'; let level=null; let G=null; let picking=null; let lastSpoken=-1; let pendingXp=null; let freeCfg={players:7,vampires:2,role:'random',iq:.5};
+  setHardMode(save.hard!==false);
+  let screen='map'; let level=null; let G=null; let pendingXp=null; let freeCfg={players:7,vampires:2,role:'random',iq:.5};
 
   function load(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); return { stars:{}, xp:0, games:0, wins:0, byRole:{}, streak:0, best:0, ...s }; }catch(e){ return { stars:{}, xp:0, games:0, wins:0, byRole:{}, streak:0, best:0 }; } }
   function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
@@ -83,112 +88,144 @@ export function mountSolo(ctx){
     app.querySelector('#bStart').onclick=()=>startGame(L);
   }
 
+  /* ================= OYUN (köy sahnesi) ================= */
+  let V=null, SC=null, cursor=0, sel=null, finalChoice=null, talkMode=null, defMode=null, shownLines=[];
   function startGame(L){
-    level=L; G=new SoloGame(L,{rng:makeRng((Date.now()^(L.id*2654435761))>>>0), humanName:(localStorage.getItem('vk_name')||'').trim()||'Oyuncu'}); lastSpoken=-1; picking=null; pendingXp=null; screen='game'; render();
+    SFX.unlock();
+    level=L; const longIntro=!save.seenIntro;
+    const hn=(localStorage.getItem('vk_name')||'').trim()||'Oyuncu';
+    G=new SoloGame(L,{rng:makeRng((Date.now()^(typeof L.id==='number'?L.id*2654435761:7))>>>0), humanName:hn, longIntro});
+    if(longIntro){ save.seenIntro=true; persist(); }
+    cursor=0; sel=null; finalChoice=null; talkMode=null; defMode=null; pendingXp=null; shownLines=[]; screen='game';
+    app.innerHTML=`<div class="game fade">
+      <div class="topbar" id="gTop"></div>
+      <div class="vwrap" id="gVillage"></div>
+      <div class="lines" id="gLines"></div>
+      <div id="gPanel"></div>
+      <div id="gLog" class="logmodal hidden"></div>
+    </div>`;
+    V=createVillage(app.querySelector('#gVillage'), { players:G.players.map(p=>({id:p.id, name:p.human?p.name+' (sen)':p.name, avatar:p.avatar})), onHouse });
+    SC=createScene({ village:V, voice, onLine:addLine });
+    V.setNight(false);
+    renderGame();
   }
-
-  /* ---------------- OYUN ---------------- */
-  function renderGame(){
-    const S=G.publicInfo(); const h=G.human; const r=ROLE_INFO[h.role];
-    let body='';
-    switch(G.phase){
-      case 'roles': body=viewRoles(h,r); break;
-      case 'night': body=viewNight(S,h); break;
-      case 'dawn': body=viewDawn(S,h); break;
-      case 'talk': body=viewTalk(S,h); break;
-      case 'vote': body=viewVote(S,h); break;
-      case 'verdict': body=viewVerdict(S,h); break;
-      case 'end': body=viewEnd(S,h); break;
-    }
-    app.innerHTML=`<div class="fade" style="flex:1;display:flex;flex-direction:column">
-      <div class="topbar"><button id="bQuit">✕</button><span class="pill">${G.phase==='roles'?'Başlıyor':'Gün '+G.day}${G.phase==='talk'?` · Tur ${G.round}/${G.maxRounds}`:''}</span><span class="pill">${r.ic} ${r.name}</span><button id="bVoice">${voice.on?'🔊':'🔇'}</button></div>
-      ${body}</div>`;
-    app.querySelector('#bQuit').onclick=()=>{ if(G.phase==='end'||confirmQuit()){ screen=level.free?'free':'map'; render(); } };
-    app.querySelector('#bVoice').onclick=()=>{ voice.set(!voice.on); render(); };
-    bind(S,h);
-    speakNew();
-    const f=app.querySelector('#feed'); if(f) f.scrollTop=f.scrollHeight;
+  function renderGame(){ drawTop(); renderPanel(); }
+  function flush(){
+    const evs=G.events.slice(cursor); cursor=G.events.length;
+    sel=null; talkMode=null; defMode=null; V.highlight(null);
+    SC.play(evs, ()=>{ SC.sync(G.villageState()); renderGame(); });
+    renderGame();
+  }
+  function addLine(e){
+    shownLines.push(e); if(shownLines.length>3) shownLines.shift();
+    const el=app.querySelector('#gLines'); if(!el) return;
+    el.innerHTML=shownLines.map((l,i)=>`<div class="ln ${l.t==='narr'?'narr':''} ${l.kind==='scream'?'scream':''} ${i===shownLines.length-1?'last':''}"><b>${l.t==='narr'?'🌙':esc(l.avatar)} ${esc(l.name)}${l.title?` <span class="tt">${esc(l.title)}</span>`:''}:</b> ${esc(l.text)}</div>`).join('');
+  }
+  function drawTop(){
+    const t=app.querySelector('#gTop'); if(!t||!G) return; const r=ROLE_INFO[G.human.role];
+    const ph={roles:'Başlıyor',talk:'Meydan',select:'Seçim',defense:'Savunma',final:'Son karar',verdict:'Hüküm',night:'Gece',dawn:'Sabah',end:'Bitti'}[G.phase]||'';
+    t.innerHTML=`<button id="bQuit">✕</button><span class="pill">${G.day?`Gün ${G.day} · `:''}${ph}</span><span class="pill">${r.ic} ${r.name}</span><button id="bLog">📜</button><button id="bVoice">${voice.on?'🔊':'🔇'}</button>`;
+    t.querySelector('#bQuit').onclick=()=>{ if(G.phase==='end'||confirmQuit()){ SC.skip(); try{speechSynthesis.cancel();}catch(e){} screen=level.free?'free':'map'; render(); } };
+    t.querySelector('#bVoice').onclick=()=>{ voice.set(!voice.on); if(!voice.on){ try{speechSynthesis.cancel();}catch(e){} } drawTop(); };
+    t.querySelector('#bLog').onclick=toggleLog;
+  }
+  function toggleLog(){
+    const m=app.querySelector('#gLog'); if(!m) return;
+    if(!m.classList.contains('hidden')){ m.classList.add('hidden'); return; }
+    let last=null; m.innerHTML=`<div class="login"><div class="row" style="align-items:center"><h2 style="font-size:18px">Konuşmalar</h2><button class="btn sm sec" id="bLogX" style="flex:none">Kapat</button></div><div class="logbody">${G.feed.map(f=>{ let s=''; if(f.day!==last){ last=f.day; s+=`<div class="fsep">Gün ${f.day}</div>`; } return s+(f.t==='narr'?`<div class="fnarr">${esc(f.text)}</div>`:`<div class="fb ${f.who==='me'?'me':''} ${f.kind}"><span class="fav">${f.avatar}</span><div class="fbody"><div class="fname">${esc(f.name)}${f.title?' · '+esc(f.title):''}</div><div>${esc(f.text)}</div></div></div>`); }).join('')}</div></div>`;
+    m.classList.remove('hidden'); m.querySelector('#bLogX').onclick=()=>m.classList.add('hidden');
+    const b=m.querySelector('.logbody'); b.scrollTop=b.scrollHeight;
   }
   function confirmQuit(){ if(quitArmed){ quitArmed=false; return true; } quitArmed=true; toast('Çıkmak için tekrar ✕\'e bas (oyun kaybolur)'); setTimeout(()=>quitArmed=false,3000); return false; }
   let quitArmed=false;
 
-  function speakNew(){
-    const narrs=G.feed.map((f,i)=>({f,i})).filter(x=>x.f.kind==='narr');
-    const last=narrs[narrs.length-1]; if(last && last.i>lastSpoken){ lastSpoken=last.i; voice.speak(last.f.text); }
+  /* ---- ev seçimi (dokunma) ---- */
+  function pickCands(){
+    if(!G||SC?.busy) return null;
+    if(G.phase==='select'&&G.needs) return G.needs.cands;
+    if(G.phase==='night'&&G.needs) return G.needs.cands;
+    if(G.phase==='talk'&&talkMode) return G.alive().filter(p=>!p.human).map(p=>p.id);
+    if(G.phase==='defense'&&defMode==='blame') return G.needs.targets;
+    return null;
   }
+  function onHouse(id){ const c=pickCands(); if(!c||!c.includes(id)) return; sel=id; V.highlight(id,true); renderPanel(); }
+  const chips=(ids)=>`<div class="chips">${ids.map(id=>{ const p=G.P(id); return `<button class="chip ${sel===id?'on':''}" data-chip="${id}">${p.avatar} ${esc(p.human?p.name+' (sen)':p.name)}${p.claimed?` <small>"${ROLE_INFO[p.claimed].name}"</small>`:''}</button>`; }).join('')}</div>`;
 
-  const plist=(ids, sel, extra={})=>`<ul class="plist">${ids.map(id=>{ const p=G.P(id); const dead=!p.alive; return `<li class="pick ${sel===id?'sel':''} ${dead?'dead':''}" data-pick="${id}"><span class="av">${p.avatar}</span><span class="nm">${esc(p.name)}${p.claimed?` <span class="tag">· "${ROLE_INFO[p.claimed].name}"</span>`:''}${extra.showRole&&(dead||G.phase==='end'||(G.human.role==='vampir'&&p.role==='vampir'))?` <span class="tag">${ROLE_INFO[p.role].ic}</span>`:''}</span>${extra.counts&&extra.counts[id]?`<span class="cnt">${extra.counts[id]}</span>`:''}${sel===id?'<span class="tag">✔</span>':''}</li>`; }).join('')}</ul>`;
-
-  function viewRoles(h,r){
-    const mates=G.players.filter(p=>p.role==='vampir'&&p!==h);
-    return `<p class="sub">Rolün belli oldu</p>
-      <div class="rolecard ${h.role}"><div class="ic">${r.ic}</div><div class="rn">${r.name}</div><div class="rd">${ROLE_DESC[h.role]}</div>
-      ${h.role==='vampir'&&mates.length?`<div style="margin-top:12px;color:var(--blood2);font-weight:800">Ortağın: ${mates.map(m=>m.avatar+' '+esc(m.name)).join(', ')}</div>`:''}</div>
-      <div class="card"><label>Köy (${G.players.length} kişi)</label><div class="villagers">${G.players.map(p=>`<span class="vp">${p.avatar} ${esc(p.name)}</span>`).join('')}</div></div>
-      <button class="btn" id="bAck">Geceye geç</button>`;
-  }
-  function viewNight(S,h){
-    const n=G.needs; const title={vamp:'🧛 Kurbanını seç',doktor:'🩺 Kimi koruyacaksın?',kahin:'🔮 Kimi araştıracaksın?'}[n.type];
-    const hint={vamp:'Kâhin olduğunu söyleyen ya da seni suçlayan varsa önce onu.',doktor:'Vampir en çok suçlayanı veya kâhin iddiasında olanı hedef alır.',kahin:'En çok şüphelendiğine bak; bulduğunu gündüz açıklayabilirsin.'}[n.type];
-    return `<div class="banner night"><div class="big">🌙</div><div class="t">Gece ${G.day}</div><div class="d">${hint}</div></div>
-      <div class="card"><h2>${title}</h2>${plist(n.cands, picking)}<button class="btn ${n.type==='doktor'?'green':n.type==='kahin'?'blue':''}" id="bConfirm" ${picking?'':'disabled'}>${{vamp:'Öldür',doktor:'Koru',kahin:'Araştır'}[n.type]}</button></div>`;
-  }
-  function viewDawn(S,h){
-    const ln=G.lastNight; const sr=ln.seer; const died=!h.alive;
-    return `<div class="banner day"><div class="big">🌅</div><div class="t">Sabah oldu</div>
-      <div style="margin-top:10px;font-size:19px;font-weight:800">${ln.killed?`<span class="bad">${esc(ln.killedName)}</span> öldürüldü. <span class="tag">${ROLE_INFO[ln.killedRole].ic} ${ROLE_INFO[ln.killedRole].name}</span>`:(ln.saved?'<span class="ok">Doktor kurtardı!</span> Kimse ölmedi.':'Kimse ölmedi.')}</div></div>
-      ${sr?`<div class="card" style="text-align:center;border-color:var(--blue)">🔮 <b>${esc(G.P(sr.target).name)}</b> ${sr.isVamp?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}</div>`:''}
-      ${died?`<div class="card" style="text-align:center"><div style="font-size:44px">👻</div><b>Öldün.</b><div class="note">Kalan oyun botlar arasında oynandı; sonucu gör.</div></div><button class="btn" id="bResult">Sonucu gör</button>`:`<button class="btn gold" id="bTalk">Tartışmayı başlat</button>`}
-      ${villageCard()}`;
-  }
-  function feedHtml(){
-    const items=G.feed.filter(f=>f.kind!=='narr'||true);
-    let lastDay=null, out='';
-    for(const f of items){ if(f.day!==lastDay){ lastDay=f.day; out+=`<div class="fsep">Gün ${f.day}</div>`; }
-      if(f.kind==='narr'){ out+=`<div class="fnarr">${esc(f.text)}</div>`; continue; }
-      const me=f.who==='me'; out+=`<div class="fb ${me?'me':''} ${f.kind}"><span class="fav">${f.avatar}</span><div class="fbody"><div class="fname">${esc(f.name)}</div><div>${esc(f.text)}</div></div></div>`; }
-    return out;
-  }
-  function viewTalk(S,h){
-    const opts=G.humanOptions();
-    let actions='';
-    if(picking&&picking.mode){
-      const m=picking.mode;
-      if(m==='claimSeer'){ const o=opts.find(x=>x.type==='claimSeer'); actions=`<div class="card"><h2 style="font-size:16px">${h.role==='kahin'?'Hangi kehanetini açıklayacaksın?':'Kimi işaret edeceksin? (yalan)'}</h2><ul class="plist">${o.results.map((r,i)=>`<li class="pick" data-claim="${i}"><span class="av">${G.P(r.target).avatar}</span><span class="nm">${esc(G.P(r.target).name)}</span><span class="tag ${r.isVamp?'bad':'ok'}">${r.isVamp?'VAMPİR':'temiz'}</span></li>`).join('')}</ul><button class="btn sec" id="bCancel">Vazgeç</button></div>`; }
-      else { const o=opts.find(x=>x.type===m); actions=`<div class="card"><h2 style="font-size:16px">${m==='accuse'?'Kimi suçlayacaksın?':'Kimi savunacaksın?'}</h2>${plist(o.targets, picking.target)}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn ${m==='accuse'?'':'green'}" id="bDo" ${picking.target?'':'disabled'}>${m==='accuse'?'Suçla':'Savun'}</button></div></div>`; }
-    } else {
-      actions=`<div class="card"><label>Sıra sende — ne diyeceksin?</label><div class="acts">${opts.map(o=>`<button class="btn sm ${o.type==='accuse'?'':o.type==='defend'?'green':o.type==='quiet'?'sec':'blue'}" data-act="${o.type}">${o.label}</button>`).join('')}</div></div>`;
+  function renderPanel(){
+    const el=app.querySelector('#gPanel'); if(!el||!G) return;
+    if(SC.busy){ el.innerHTML=`<div class="card panelc"><button class="btn sec" id="bSkip">⏩ Geç</button></div>`; el.querySelector('#bSkip').onclick=()=>SC.skip(); return; }
+    const h=G.human, r=ROLE_INFO[h.role]; let html='';
+    switch(G.phase){
+      case 'roles': {
+        const mates=G.players.filter(p=>p.role==='vampir'&&p!==h);
+        html=`<div class="rolecard ${h.role}" style="padding:16px"><div class="ic" style="font-size:54px">${r.ic}</div><div class="rn">${r.name}</div><div class="rd">${ROLE_DESC[h.role]}</div>${h.role==='vampir'&&mates.length?`<div style="margin-top:10px;color:var(--blood2);font-weight:800">Ortağın: ${mates.map(m=>m.avatar+' '+esc(m.name)).join(', ')}</div>`:''}</div>
+          <button class="btn gold" id="bGo">🔔 Meydana toplan</button>`; break; }
+      case 'talk': {
+        if(talkMode){
+          if(talkMode==='claimSeer'){ const o=G.humanOptions().find(x=>x.type==='claimSeer'); html=`<div class="card panelc"><label>${h.role==='kahin'?'Hangi kehanetini açıklayacaksın?':'Kimi işaret edeceksin? (yalan)'}</label><div class="chips">${o.results.map((x,i)=>`<button class="chip" data-claim="${i}">${G.P(x.target).avatar} ${esc(G.P(x.target).name)} <small class="${x.isVamp?'bad':'ok'}">${x.isVamp?'VAMPİR':'temiz'}</small></button>`).join('')}</div><button class="btn sec" id="bCancel">Vazgeç</button></div>`; }
+          else html=`<div class="card panelc"><label>${talkMode==='accuse'?'Kimi suçlayacaksın? Evine dokun':'Kimi savunacaksın? Evine dokun'}</label>${chips(pickCands())}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn ${talkMode==='accuse'?'':'green'}" id="bDo" ${sel?'':'disabled'}>${talkMode==='accuse'?'Suçla':'Savun'}</button></div></div>`;
+        } else {
+          html=`<div class="card panelc"><label>Sıra sende — ne diyeceksin? <span class="tt">Tur ${G.round}/${G.roundsToday}</span></label><div class="acts">${G.humanOptions().map(o=>`<button class="btn sm ${o.type==='accuse'?'':o.type==='defend'?'green':o.type==='quiet'?'sec':'blue'}" data-act="${o.type}">${o.label}</button>`).join('')}</div></div>`;
+        }
+        break; }
+      case 'select':
+        html=`<div class="card panelc"><label>🏠 Şüphelendiğin kişinin evine dokun</label>${chips(G.needs.cands)}<button class="btn" id="bSel" ${sel?'':'disabled'}>${sel?`${esc(G.P(sel).name)} meydana getirilsin!`:'Bir ev seç'}</button></div>`; break;
+      case 'defense': {
+        if(defMode==='blame') html=`<div class="card panelc"><label>Kimi işaret edeceksin?</label>${chips(G.needs.targets)}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn" id="bBlame" ${sel?'':'disabled'}>Onu göster!</button></div></div>`;
+        else html=`<div class="card panelc" style="border-color:var(--blood2)"><label style="color:var(--blood2)">⚖️ Meydanda sen varsın! Kendini savun:</label><div class="acts">${G.needs.options.map(o=>`<button class="btn sm ${o.key==='silent'?'sec':o.key==='role'?'blue':o.key==='blame'?'':'green'}" data-def="${o.key}">${o.label}</button>`).join('')}</div></div>`;
+        break; }
+      case 'final': {
+        const acc=G.P(G.accused); const locks=Object.entries(G.finalVotes);
+        html=`<div class="card panelc"><label>Son karar: <b style="color:var(--gold)">${acc.avatar} ${esc(acc.name)}</b> asılsın mı?</label>
+          ${locks.length?`<div class="note" style="text-align:left">Kitleyenler: ${locks.map(([k,v])=>`${G.P(k).avatar}${v==='hang'?'🪢':'🕊️'}`).join(' ')}</div>`:''}
+          <div class="row"><button class="btn ${finalChoice==='hang'?'':'sec'}" data-fv="hang">🪢 AS</button><button class="btn ${finalChoice==='release'?'green':'sec'}" data-fv="release">🕊️ BIRAK</button></div>
+          <button class="btn gold" id="bLock" ${finalChoice?'':'disabled'}>🔒 Oyumu kitledim</button></div>`; break; }
+      case 'verdict': {
+        const lv=G.lastVote||{};
+        html=`<div class="card panelc" style="text-align:center">${lv.hanged?(lv.role==='vampir'?`<div class="big" style="color:var(--blood2)">🧛 VAMPİR ÇIKTI!</div><div class="note">${esc(lv.name)} kazığa oturtuldu.</div>`:`<div class="big">🪢 ${esc(lv.name)}</div><div class="note">${ROLE_INFO[lv.role].ic} ${ROLE_INFO[lv.role].name} idi. (${lv.hang} AS / ${lv.rel} BIRAK)</div>`):`<div class="big">🕊️ Bırakıldı</div><div class="note">${esc(lv.name||'')} bugün kurtuldu (${lv.hang} AS / ${lv.rel} BIRAK).</div>`}
+          <button class="btn" id="bNight">🌙 Herkes evine, gece olsun</button></div>`; break; }
+      case 'night': {
+        if(!G.needs){ html=''; break; }
+        const n=G.needs; const t={vamp:'🧛 Kimin evine gireceksin?',doktor:'🩺 Kimin evini koruyacaksın?',kahin:'🔮 Kimin evine bakacaksın?'}[n.type];
+        html=`<div class="card panelc"><label>${t} <span class="tt">Eve dokun</span></label>${chips(n.cands)}<button class="btn ${n.type==='doktor'?'green':n.type==='kahin'?'blue':''}" id="bNightGo" ${sel?'':'disabled'}>${{vamp:'Kanını em',doktor:'Koru',kahin:'Bak'}[n.type]}</button></div>`; break; }
+      case 'dawn': {
+        const sr=G.lastNight?.seer;
+        html=`${sr?`<div class="card panelc" style="text-align:center;border-color:var(--blue)">🔮 <b>${esc(G.P(sr.target).name)}</b> ${sr.isVamp?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}<div class="note">Sadece sen biliyorsun.</div></div>`:''}
+          <button class="btn gold" id="bTalk">🔔 Meydana toplan</button>`; break; }
+      case 'end': html=viewEnd(); break;
     }
-    return `<div class="banner day" style="padding:12px"><div class="t" style="font-size:18px">☀️ Tartışma</div></div>
-      <div class="feed" id="feed">${feedHtml()}</div>${actions}`;
+    el.innerHTML=html; bindPanel(el);
   }
-  function viewVote(S,h){
-    return `<div class="banner day" style="padding:12px"><div class="t" style="font-size:18px">⚖️ Oylama</div><div class="d">Kim asılsın?</div></div>
-      <div class="feed small" id="feed">${feedHtml()}</div>
-      <div class="card">${plist(G.needs.cands, picking)}<div class="row"><button class="btn sec" id="bSkip">Çekimser</button><button class="btn" id="bConfirm" ${picking?'':'disabled'}>As</button></div></div>`;
+  function bindPanel(el){
+    const q=(s)=>el.querySelector(s);
+    q('#bGo')&&(q('#bGo').onclick=()=>{ G.ackRole(); flush(); });
+    el.querySelectorAll('[data-chip]').forEach(b=>b.onclick=()=>onHouse(b.dataset.chip));
+    el.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{ const t=b.dataset.act; if(t==='quiet'||t==='claimDoctor'){ G.talkAction({type:t}); flush(); } else { talkMode=t; sel=null; renderPanel(); } });
+    el.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>{ const o=G.humanOptions().find(x=>x.type==='claimSeer'); const x=o.results[+b.dataset.claim]; G.talkAction({type:'claimSeer',target:x.target,isVamp:x.isVamp}); flush(); });
+    q('#bCancel')&&(q('#bCancel').onclick=()=>{ talkMode=null; defMode=null; sel=null; V.highlight(null); renderPanel(); });
+    q('#bDo')&&(q('#bDo').onclick=()=>{ G.talkAction({type:talkMode,target:sel}); flush(); });
+    q('#bSel')&&(q('#bSel').onclick=()=>{ G.selectHouse(sel); flush(); });
+    el.querySelectorAll('[data-def]').forEach(b=>b.onclick=()=>{ const k=b.dataset.def; if(k==='blame'){ defMode='blame'; sel=null; renderPanel(); } else { G.defend(k); flush(); } });
+    q('#bBlame')&&(q('#bBlame').onclick=()=>{ G.defend('blame',sel); flush(); });
+    el.querySelectorAll('[data-fv]').forEach(b=>b.onclick=()=>{ finalChoice=b.dataset.fv; renderPanel(); });
+    q('#bLock')&&(q('#bLock').onclick=()=>{ const v=finalChoice; finalChoice=null; G.finalVote(v); flush(); });
+    q('#bNight')&&(q('#bNight').onclick=()=>{ G.nextNight(); flush(); });
+    q('#bNightGo')&&(q('#bNightGo').onclick=()=>{ G.nightAction(sel); flush(); });
+    q('#bTalk')&&(q('#bTalk').onclick=()=>{ G.startTalk(); flush(); });
+    q('#bNext')&&(q('#bNext').onclick=()=>{ level=LEVELS.find(l=>l.id===level.id+1); screen='intro'; render(); });
+    q('#bRetry')&&(q('#bRetry').onclick=()=>startGame(level));
+    q('#bMap')&&(q('#bMap').onclick=()=>{ screen=level.free?'free':'map'; render(); });
   }
-  function viewVerdict(S,h){
-    const lv=G.lastVote; const died=!h.alive;
-    const voters=(id)=>Object.entries(lv.votes).filter(([,v])=>v===id).map(([k])=>G.P(k).avatar).join('');
-    return `<div class="banner day"><div class="big">${lv.hanged?'🪢':'🤷'}</div><div class="t">Karar</div>
-      <div style="margin-top:10px;font-size:19px;font-weight:800">${lv.hanged?`<span class="bad">${esc(lv.name)}</span> asıldı. <span class="tag">${ROLE_INFO[lv.role].ic} ${ROLE_INFO[lv.role].name}</span>`:(lv.tie?'Oylar eşit, kimse asılmadı.':'Kimse asılmadı.')}</div></div>
-      <div class="card"><label>Oylar</label><ul class="plist">${Object.entries(lv.tally).sort((a,b)=>b[1]-a[1]).map(([id,c])=>`<li><span class="av">${G.P(id).avatar}</span><span class="nm">${esc(G.P(id).name)}</span><span class="tag">${voters(id)}</span><span class="cnt">${c}</span></li>`).join('')}${lv.skips?`<li><span class="av">–</span><span class="nm">Çekimser</span><span class="cnt">${lv.skips}</span></li>`:''}</ul></div>
-      ${died?`<div class="card" style="text-align:center"><div style="font-size:44px">👻</div><b>Asıldın.</b><div class="note">Kalan oyun botlar arasında oynandı.</div></div><button class="btn" id="bResult">Sonucu gör</button>`:`<button class="btn" id="bNight">Geceye geç</button>`}
-      ${villageCard()}`;
-  }
-  function villageCard(){
-    return `<div class="card"><label>Köy</label><ul class="plist">${G.players.map(p=>`<li class="${p.alive?'':'dead'} ${p.human?'me':''}"><span class="av">${p.avatar}</span><span class="nm">${esc(p.name)}${p.claimed?` <span class="tag">· "${ROLE_INFO[p.claimed].name}"</span>`:''}</span>${(!p.alive||p.human||(G.human.role==='vampir'&&p.role==='vampir'))?`<span class="tag">${ROLE_INFO[p.role].ic} ${ROLE_INFO[p.role].name}</span>`:''}</li>`).join('')}</ul></div>`;
-  }
-  function viewEnd(S,h){
+  function viewEnd(){
     const res=G.result; if(!pendingXp) applyResult(res);
-    const rk=rankFor(save.xp);
+    const h=G.human; const rk=rankFor(save.xp);
     const next=level.free?null:LEVELS.find(l=>l.id===level.id+1);
-    return `<div class="banner ${res.won?'day':'night'}"><div class="big">${res.won?'🏆':'💀'}</div><div class="t">${res.won?'Kazandın!':'Kaybettin'}</div><div class="d">${G.winner==='vampir'?'Vampirler köyü ele geçirdi.':'Köy vampirlerden kurtuldu.'} · ${res.days} gün${G.stats.humanDiedDay?` · ${G.stats.humanDiedDay}. gün öldün, kalanı botlar oynadı`:''}</div>
+    return `<div class="banner ${res.won?'day':'night'}"><div class="big">${res.won?'🏆':'💀'}</div><div class="t">${res.won?'Kazandın!':'Kaybettin'}</div><div class="d">${G.winner==='vampir'?'Vampirler köyü ele geçirdi.':'Köy vampirlerden kurtuldu.'} · ${res.days} gün${G.stats.humanDiedDay?` · ${G.stats.humanDiedDay}. gün öldün`:''}</div>
       <div class="stars ${res.stars?'won':''}">${[1,2,3].map(i=>`<span class="${i<=res.stars?'on':''}" style="animation-delay:${i*.25}s">★</span>`).join('')}</div></div>
       <div class="card">
         <div class="obj ${res.won?'ok':'bad'}">${res.won?'✔':'✘'} Kazan</div>
         <div class="obj ${res.objOk?'ok':'bad'}">${res.objOk?'✔':'✘'} ${esc(res.objText)}</div>
-        <div class="obj ${res.perfect?'ok':'bad'}">${res.perfect?'✔':'✘'} ${h.role==='vampir'?'En fazla 1 oy al':'Hiç yanlış oy verme'}</div>
+        <div class="obj ${res.perfect?'ok':'bad'}">${res.perfect?'✔':'✘'} ${h.role==='vampir'?'En fazla 1 oy al':'Hiç yanlış kişiye AS deme, hayatta kal'}</div>
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center"><span>+${pendingXp.xp} XP ${pendingXp.newStars>0?`· <span class="ok">+${pendingXp.newStars} yeni ★</span>`:''}</span><span class="pill">${rk.ic} ${rk.name}</span></div>
         ${pendingXp.rankUp?`<div class="note ok">Rütbe atladın: ${rk.name}!</div>`:''}
       </div>
@@ -205,26 +242,6 @@ export function mountSolo(ctx){
     persist();
     pendingXp={xp,newStars,rankUp:rankFor(save.xp).name!==before};
   }
-
-  function bind(S,h){
-    const q=(s)=>app.querySelector(s);
-    q('#bAck')&&(q('#bAck').onclick=()=>{ G.ackRole(); picking=null; render(); });
-    app.querySelectorAll('[data-pick]').forEach(li=>li.onclick=()=>{ const id=li.dataset.pick; if(G.phase==='talk'){ picking={...picking,target:id}; } else picking=id; render(); });
-    q('#bConfirm')&&(q('#bConfirm').onclick=()=>{ if(!picking) return; const t=picking; picking=null; if(G.phase==='night') G.nightAction(t); else if(G.phase==='vote') G.vote(t); render(); });
-    q('#bSkip')&&(q('#bSkip').onclick=()=>{ picking=null; G.vote('skip'); render(); });
-    q('#bTalk')&&(q('#bTalk').onclick=()=>{ G.startTalk(); picking=null; render(); });
-    q('#bNight')&&(q('#bNight').onclick=()=>{ G.nextNight(); picking=null; render(); });
-    q('#bResult')&&(q('#bResult').onclick=()=>{ render(); });
-    app.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{ const t=b.dataset.act; if(t==='quiet'){ act({type:'quiet'}); } else if(t==='claimDoctor'){ act({type:'claimDoctor'}); } else picking={mode:t,target:null}; render(); });
-    app.querySelectorAll('[data-claim]').forEach(li=>li.onclick=()=>{ const o=G.humanOptions().find(x=>x.type==='claimSeer'); const r=o.results[+li.dataset.claim]; act({type:'claimSeer',target:r.target,isVamp:r.isVamp}); });
-    q('#bCancel')&&(q('#bCancel').onclick=()=>{ picking=null; render(); });
-    q('#bDo')&&(q('#bDo').onclick=()=>{ const m=picking.mode, t=picking.target; act({type:m,target:t}); });
-    q('#bNext')&&(q('#bNext').onclick=()=>{ level=LEVELS.find(l=>l.id===level.id+1); screen='intro'; render(); });
-    q('#bRetry')&&(q('#bRetry').onclick=()=>startGame(level));
-    q('#bMap')&&(q('#bMap').onclick=()=>{ screen=level.free?'free':'map'; render(); });
-  }
-  function act(a){ picking=null; const before=G.feed.length; G.talkAction(a); render(); animateNew(before); }
-  function animateNew(from){ const f=app.querySelector('#feed'); if(!f) return; const items=[...f.querySelectorAll('.fb,.fnarr')]; const newOnes=items.slice(items.length-(G.feed.length-from)); newOnes.forEach((el,i)=>{ el.style.opacity='0'; setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='1'; f.scrollTop=f.scrollHeight; }, 250+i*450); }); }
 
   /* ---------------- SERBEST OYUN ---------------- */
   function renderFree(){
@@ -253,8 +270,11 @@ export function mountSolo(ctx){
       <div class="card"><div class="row"><div><label>Oyun</label><div class="big">${save.games}</div></div><div><label>Kazanma</label><div class="big">%${wr}</div></div><div><label>En iyi seri</label><div class="big">${save.best}</div></div></div></div>
       <div class="card"><label>Role göre</label><ul class="plist">${Object.keys(ROLE_INFO).map(r=>{ const b=save.byRole[r]||{g:0,w:0}; return `<li><span class="av">${ROLE_INFO[r].ic}</span><span class="nm">${ROLE_INFO[r].name}</span><span class="tag">${b.g} oyun</span><span class="cnt" style="background:${b.g?'var(--green)':'var(--card2)'};color:#03150c">${b.g?Math.round(100*b.w/b.g)+'%':'–'}</span></li>`; }).join('')}</ul></div>
       <div class="card"><label>Rütbeler</label><ul class="plist">${RANKS.map(k=>`<li class="${save.xp>=k.xp?'':'dead'}"><span class="av">${k.ic}</span><span class="nm">${k.name}</span><span class="tag">${k.xp} XP</span></li>`).join('')}</ul></div>
+      <div class="card"><label>Ayarlar</label><button class="btn ${save.hard!==false?'':'sec'}" id="bHard">${save.hard!==false?'🌶️ Sert mod AÇIK (argolu şive)':'🙂 Sert mod KAPALI (yumuşak dil)'}</button><button class="btn sec" id="bIntro">Açılış sahnesini yeniden göster</button></div>
       <button class="btn sec" id="bReset">İlerlemeyi sıfırla</button></div>`;
     app.querySelector('#bBack').onclick=()=>{screen='map';render();};
+    app.querySelector('#bHard').onclick=()=>{ save.hard = save.hard===false; setHardMode(save.hard); persist(); render(); };
+    app.querySelector('#bIntro').onclick=()=>{ save.seenIntro=false; persist(); toast('Bir sonraki oyunda açılış sahnesi tam oynayacak'); };
     app.querySelector('#bReset').onclick=()=>{ if(resetArmed){ save={stars:{},xp:0,games:0,wins:0,byRole:{},streak:0,best:0}; persist(); resetArmed=false; toast('İlerleme sıfırlandı'); render(); } else { resetArmed=true; toast('Emin misin? Tekrar bas.'); setTimeout(()=>resetArmed=false,3000);} };
   }
   let resetArmed=false;

@@ -26,13 +26,25 @@ function policy(g, r){
       const t=crowd(al); if(t && r.chance(.7)) g.talkAction({type:'accuse',target:t.id}); else g.talkAction({type:'quiet'});
       continue;
     }
-    if(g.phase==='vote'){
-      const al=g.alive().filter(p=>p!==h);
-      let t;
+    if(g.phase==='select'){
+      const al=g.alive().filter(p=>p!==h); let t;
       if(h.role==='kahin'){ const known=Object.entries(h.knows).find(([id,v])=>v===true&&g.P(id).alive); if(known) t=g.P(known[0]); }
       if(h.role==='vampir'){ const cands=al.filter(p=>p.role!=='vampir'); t=crowd(cands)||r.pick(cands); }
-      if(!t) t=crowd(al);
-      g.vote(t?t.id:'skip'); continue;
+      if(!t) t=crowd(al)||r.pick(al);
+      g.selectHouse(t.id); continue;
+    }
+    if(g.phase==='defense'){
+      if(h.role==='kahin' && Object.values(h.knows).some(v=>v)) g.defend('role');
+      else if(h.role==='doktor') g.defend('role');
+      else { const al=g.alive().filter(p=>p!==h && (h.role!=='vampir'||p.role!=='vampir')); const t=crowd(al); if(t&&r.chance(.5)) g.defend('blame',t.id); else g.defend('innocent'); }
+      continue;
+    }
+    if(g.phase==='final'){
+      const acc=g.P(g.accused); let v;
+      if(h.role==='vampir') v = acc.role==='vampir'?'release':'hang';
+      else if(h.knows[acc.id]!==undefined) v = h.knows[acc.id]?'hang':'release';
+      else { let s=0,n=0; for(const b of g.aliveBots()) if(b!==acc){ s+=b.sus[acc.id]||0; n++; } v = (n?s/n:0)>0.2 || r.chance(.4) ? 'hang':'release'; }
+      g.finalVote(v); continue;
     }
     if(g.phase==='verdict'){ g.nextNight(); continue; }
     throw new Error('unknown phase '+g.phase);

@@ -131,6 +131,27 @@
   .stars.won span.on{animation:pop .5s both}
   @keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.4)}100%{transform:scale(1);opacity:1}}
   input[type=range]{padding:0;margin:6px 0 14px;accent-color:var(--gold);background:transparent;border:0}
+  /* --- köy sahnesi --- */
+  .game{display:flex;flex-direction:column;flex:1}
+  .vwrap{display:flex;justify-content:center;margin-bottom:8px}
+  .village{width:100%;max-height:50vh;height:auto;display:block;border-radius:18px;border:1px solid var(--line);background:#07050e;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .village .fig{will-change:transform}
+  .lines{min-height:58px;margin-bottom:8px;font-size:13px;line-height:1.4}
+  .lines .ln{padding:4px 10px;border-radius:10px;color:var(--muted);transition:opacity .3s}
+  .lines .ln.last{background:var(--card);color:var(--text);border:1px solid var(--line)}
+  .lines .ln.narr{color:var(--gold);font-style:italic}
+  .lines .ln.scream{color:var(--blood2);font-weight:800}
+  .tt{font-size:11px;color:var(--muted);font-weight:800;text-transform:none;letter-spacing:0}
+  .panelc{padding:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+  .chip{border:1px solid var(--line);background:var(--bg2);color:var(--text);border-radius:999px;padding:8px 12px;font:800 14px 'Nunito',sans-serif;cursor:pointer}
+  .chip.on{border-color:var(--gold);background:#3a2c14;color:#ffd98a}
+  .chip small{font-weight:600;color:var(--muted)}
+  .chip small.bad{color:var(--blood2)} .chip small.ok{color:var(--green)}
+  .logmodal{position:fixed;inset:0;background:rgba(5,3,10,.85);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+  .logmodal.hidden{display:none}
+  .login{background:var(--bg);border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:80vh;display:flex;flex-direction:column;padding:16px}
+  .logbody{overflow-y:auto;flex:1;margin-top:8px}
 </style>
 </head>
 <body>
@@ -141,6 +162,7 @@
 <script type="module">
 import { createClient } from './supabase.js';
 import { mountSolo } from './solo.js';
+import { hostStart, hostHandle as mpHandle, newGameFields, createMultiUI, unlockAudio } from './multi.js';
 
 /* ================== AYARLAR ================== */
 const SUPABASE_URL = 'https://jqbokjkswdkhvdeegfbh.supabase.co';
@@ -195,9 +217,6 @@ let isHost=false;
 let S=null;            // oyun durumu (herkes için)
 let screen='mode';     // mode | solo | home | join | game
 let joinTimeout=null;
-let localSel=null;     // seçim (hedef)
-let timerTick=null;
-let lastPhaseSpoken='';
 
 function connect(code, onReady){
   if(channel){ supabase.removeChannel(channel); channel=null; }
@@ -223,9 +242,8 @@ function broadcast(){
 
 /* ================== OYUN MANTIĞI (HOST) ================== */
 function newState(code){
-  return { code, hostId: me.id, phase:'lobby', day:0, players:[], settings:{...DEFAULTS},
-    roleAck:{}, night:{vampVotes:{}, doctor:null, seer:null, seerResult:null}, lastNight:null,
-    votes:{}, lastVote:null, winner:null, timerEnd:null, log:[] };
+  const s={ code, hostId: me.id, players:[], settings:{...DEFAULTS}, log:[] };
+  newGameFields(s); return s;
 }
 const alive = (s)=>s.players.filter(p=>p.alive);
 const P = (s,id)=>s.players.find(p=>p.id===id);
@@ -244,93 +262,19 @@ function hostHandle(a){
     case 'leave': { if(S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.from); else if(p) p.connected=false; break; }
     case 'kick': { if(a.from===S.hostId && S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.target); break; }
     case 'settings': { if(a.from===S.hostId && S.phase==='lobby') S.settings={...S.settings,...a.settings}; break; }
-    case 'start': { if(a.from===S.hostId && S.phase==='lobby') startGame(); break; }
-    case 'ackRole': { if(S.phase==='roles'){ S.roleAck[a.from]=true; if(S.players.every(x=>S.roleAck[x.id])) toNight(); } break; }
-    case 'night': { if(S.phase==='night' && p && p.alive) nightAction(p,a.target); break; }
-    case 'vote': { if(S.phase==='vote' && p && p.alive){ S.votes[p.id]=a.target; if(alive(S).every(x=>S.votes[x.id]!==undefined)) resolveVote(); } break; }
-    case 'next': { if(a.from===S.hostId) hostNext(); break; }
+    case 'start': { if(a.from===S.hostId && S.phase==='lobby') hostStart(S); break; }
     case 'restart': { if(a.from===S.hostId) restart(); break; }
+    default: mpHandle(S, a, mpCtx);
   }
   broadcast();
 }
 function log(t){ S.log.unshift(t); S.log=S.log.slice(0,40); }
 
-function startGame(){
-  const n=S.players.length; if(n<MIN_PLAYERS) return;
-  const rc=roleCounts(n); const pool=[];
-  for(const [r,c] of Object.entries(rc)) for(let i=0;i<c;i++) pool.push(r);
-  const sh=shuffle(pool);
-  S.players.forEach((p,i)=>{ p.role=sh[i]; p.alive=true; });
-  S.phase='roles'; S.day=0; S.roleAck={}; S.winner=null; S.lastNight=null; S.lastVote=null; S.log=[];
-  log(`Oyun başladı: ${rc.vampir} vampir, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`);
-}
-function toNight(){
-  S.phase='night'; S.day++; S.night={vampVotes:{}, doctor:null, seer:null, seerResult:null}; S.timerEnd=null;
-  // doktor/kâhin ölüyse otomatik tamam
-  checkNightDone();
-}
-function nightAction(p,target){
-  if(p.role==='vampir'){ S.night.vampVotes[p.id]=target; }
-  else if(p.role==='doktor'){ S.night.doctor=target; }
-  else if(p.role==='kahin'){ S.night.seer=target; const t=P(S,target); S.night.seerResult = t ? (t.role==='vampir') : null; }
-  checkNightDone();
-}
-function checkNightDone(){
-  const al=alive(S);
-  const vamps=al.filter(x=>x.role==='vampir');
-  const doc=al.find(x=>x.role==='doktor'); const seer=al.find(x=>x.role==='kahin');
-  const vampsDone = vamps.every(v=>S.night.vampVotes[v.id]);
-  const docDone = !doc || S.night.doctor; const seerDone = !seer || S.night.seer;
-  if(vampsDone && docDone && seerDone) resolveNight();
-}
-function resolveNight(){
-  const tally={}; Object.values(S.night.vampVotes).forEach(t=>{ if(t&&t!=='__none') tally[t]=(tally[t]||0)+1; });
-  let victim=null, max=0; for(const [t,c] of Object.entries(tally)){ if(c>max){max=c;victim=t;} }
-  const saved = victim && S.night.doctor===victim;
-  let killed=null;
-  if(victim && !saved){ const v=P(S,victim); if(v){ v.alive=false; killed=victim; } }
-  S.lastNight={killed, saved:!!saved, victimName: victim?P(S,victim)?.name:null,
-    seer: (S.night.seer && S.night.seer!=='__none') ? {target:S.night.seer, isVamp:S.night.seerResult} : null};
-  log(killed ? `Gece ${S.day}: ${P(S,killed).name} öldürüldü.` : `Gece ${S.day}: kimse ölmedi.`);
-  S.phase='dawn'; S.votes={};
-  if(!checkWin()) {}
-}
-function startDiscussion(){ S.phase='discussion'; S.timerEnd=Date.now()+S.settings.discussionSec*1000; armTimer(()=>{ if(S.phase==='discussion'){ startVote(); broadcast(); } }); }
-function startVote(){ S.phase='vote'; S.votes={}; S.timerEnd=Date.now()+S.settings.voteSec*1000; armTimer(()=>{ if(S.phase==='vote'){ resolveVote(); broadcast(); } }); }
-function resolveVote(){
-  clearTimeout(hostTimer); S.timerEnd=null;
-  const tally={}; let skip=0;
-  for(const [v,t] of Object.entries(S.votes)){ if(t==='skip'||!t) skip++; else tally[t]=(tally[t]||0)+1; }
-  let hanged=null, max=0, tie=false;
-  for(const [t,c] of Object.entries(tally)){ if(c>max){max=c;hanged=t;tie=false;} else if(c===max) tie=true; }
-  if(tie || max===0 || skip>=max) hanged=null;
-  const hp = hanged?P(S,hanged):null;
-  if(hp){ hp.alive=false; log(`Gün ${S.day}: ${hp.name} asıldı (${ROLES[hp.role].name}).`); } else log(`Gün ${S.day}: kimse asılmadı.`);
-  S.lastVote={hanged, tally, skip, tie, role: hp?hp.role:null, name: hp?hp.name:null};
-  S.phase='verdict';
-  checkWin();
-}
-function checkWin(){
-  const al=alive(S); const v=al.filter(x=>x.role==='vampir').length; const o=al.length-v;
-  if(v===0){ S.winner='koylu'; S.phase='end'; return true; }
-  if(v>=o){ S.winner='vampir'; S.phase='end'; return true; }
-  return false;
-}
-function hostNext(){
-  clearTimeout(hostTimer);
-  switch(S.phase){
-    case 'roles': toNight(); break;
-    case 'night': // zorla: eksik aksiyonları boş geç
-      { const al=alive(S); al.filter(x=>x.role==='vampir'&&!S.night.vampVotes[x.id]).forEach(x=>S.night.vampVotes[x.id]='__none'); S.night.doctor=S.night.doctor||'__none'; S.night.seer=S.night.seer||'__none'; resolveNight(); } break;
-    case 'dawn': startDiscussion(); break;
-    case 'discussion': startVote(); break;
-    case 'vote': resolveVote(); break;
-    case 'verdict': toNight(); break;
-  }
-}
-function restart(){ const players=S.players.map(p=>({...p, role:null, alive:true})); const code=S.code; const settings=S.settings; S=newState(code); S.players=players; S.settings=settings; }
+function restart(){ clearTimeout(hostTimer); const gid=S.gameId; newGameFields(S); S.gameId=gid; S.players.forEach(p=>{ p.role=null; p.alive=true; p.fate=null; }); }
 let hostTimer=null;
-function armTimer(fn){ clearTimeout(hostTimer); hostTimer=setTimeout(fn, Math.max(0,S.timerEnd-Date.now())+200); }
+const mpCtx={ broadcast:()=>broadcast(), armTimer:(end,fn)=>{ clearTimeout(hostTimer); hostTimer=setTimeout(fn, Math.max(0,end-Date.now())+200); }, clearTimer:()=>clearTimeout(hostTimer) };
+const mpUI=createMultiUI({ app, esc, voice, send:(a)=>send(a), toast, isHost:()=>isHost, meId:()=>me.id, onLeave:()=>leaveRoom() });
+function leaveRoom(){ send({type:'leave'}); if(channel){supabase.removeChannel(channel);channel=null;} S=null; isHost=false; mpUI.reset(); screen='mode'; render(); }
 
 /* ================== İSTEMCİ ================== */
 function applyState(s){
@@ -352,8 +296,8 @@ function renderMode(){
     </div>`;
   const saveName=()=>{ const n=$('#mName').value.trim(); if(n){ me.name=n; localStorage.setItem('vk_name',n); } return n; };
   $('#mName').onchange=saveName;
-  $('#mSolo').onclick=()=>{ if(!saveName()){ toast('Önce adını yaz'); $('#mName').focus(); return; } voice.set(true); keepAwake(); if(!solo) solo=mountSolo({ app, esc, voice, toast, onExit:()=>{ screen='mode'; render(); } }); screen='solo'; solo.show(); };
-  $('#mMulti').onclick=()=>{ saveName(); screen='home'; render(); };
+  $('#mSolo').onclick=()=>{ unlockAudio(); if(!saveName()){ toast('Önce adını yaz'); $('#mName').focus(); return; } voice.set(true); keepAwake(); if(!solo) solo=mountSolo({ app, esc, voice, toast, onExit:()=>{ screen='mode'; render(); } }); screen='solo'; solo.show(); };
+  $('#mMulti').onclick=()=>{ unlockAudio(); saveName(); screen='home'; render(); };
 }
 function render(){
   if(screen==='mode') return renderMode();
@@ -428,20 +372,10 @@ function bindTop(){ const b=$('#bVoice'); if(b) b.onclick=()=>{ voice.set(!voice
 
 function renderGame(){
   if(!S){ app.innerHTML='<p class="sub pulse">Bağlanıyor…</p>'; return; }
-  const mine=P(S,me.id);
-  let html=topbar();
-  switch(S.phase){
-    case 'lobby': html+=viewLobby(); break;
-    case 'roles': html+=viewRoles(mine); break;
-    case 'night': html+=viewNight(mine); break;
-    case 'dawn': html+=viewDawn(mine); break;
-    case 'discussion': html+=viewDiscussion(mine); break;
-    case 'vote': html+=viewVote(mine); break;
-    case 'verdict': html+=viewVerdict(mine); break;
-    case 'end': html+=viewEnd(mine); break;
-  }
-  app.innerHTML=`<div class="fade">${html}</div>`;
-  bindTop(); bindGame(mine); narrate(mine); runTimer();
+  if(S.phase!=='lobby'){ mpUI.render(S); return; }
+  mpUI.reset();
+  app.innerHTML=`<div class="fade">${topbar()}${viewLobby()}</div>`;
+  bindTop(); bindGame(P(S,me.id));
 }
 
 const hostBtn=(label,cls='gold')=> isHost?`<button class="btn ${cls}" id="bNext">${label}</button>`:`<p class="note pulse">Anlatıcının (oda sahibi) devam etmesi bekleniyor…</p>`;
@@ -461,161 +395,21 @@ function viewLobby(){
       <h2 style="font-size:16px">Süreler</h2>
       <div class="row" style="margin-top:8px">
         <div><label>Tartışma (sn)</label><input id="sDisc" type="number" inputmode="numeric" value="${S.settings.discussionSec}"></div>
-        <div><label>Oylama (sn)</label><input id="sVote" type="number" inputmode="numeric" value="${S.settings.voteSec}"></div>
+        <div><label>Seçim/oy (sn)</label><input id="sVote" type="number" inputmode="numeric" value="${S.settings.voteSec}"></div>
       </div>
     </div>
     <button class="btn" id="bStart" ${n<MIN_PLAYERS?'disabled':''}>Oyunu Başlat</button>`
     :`<p class="note pulse">Anlatıcının oyunu başlatması bekleniyor…</p>`}
     <button class="btn sec" id="bLeave">Odadan Ayrıl</button>`;
 }
-function viewRoles(mine){
-  if(!mine) return spectator();
-  const r=ROLES[mine.role];
-  const others = mine.role==='vampir' ? S.players.filter(p=>p.role==='vampir'&&p.id!==me.id) : [];
-  const acked=S.roleAck[me.id];
-  return `
-    <p class="sub">Rolünü kimseye gösterme!</p>
-    <div class="rolecard ${mine.role}"><div class="ic">${r.ic}</div><div class="rn">${r.name}</div><div class="rd">${r.desc}</div>
-    ${others.length?`<div style="margin-top:14px;color:var(--blood2);font-weight:800">Diğer vampirler: ${others.map(o=>esc(o.name)).join(', ')}</div>`:''}
-    </div>
-    ${acked?`<p class="note pulse">Diğerleri bekleniyor… (${Object.keys(S.roleAck).length}/${S.players.length})</p>`:`<button class="btn" id="bAck">Anladım, gizle</button>`}
-    ${isHost&&acked?hostBtn('Beklemeden geceye geç','sec'):''}`;
-}
-function pickList(cands, selected, opts={}){
-  return `<ul class="plist">${cands.map(p=>`<li class="pick ${selected===p.id?'sel':''} ${p.id===me.id?'me':''}" data-pick="${p.id}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id===me.id?' (sen)':''}</span>${opts.counts&&opts.counts[p.id]?`<span class="cnt">${opts.counts[p.id]}</span>`:''}${selected===p.id?'<span class="tag">✔</span>':''}</li>`).join('')}</ul>`;
-}
-function viewNight(mine){
-  const head=`<div class="banner night"><div class="big">🌙</div><div class="t">Gece ${S.day}</div><div class="d">Köy uykuya daldı…</div></div>`;
-  if(!mine||!mine.alive) return head+spectator();
-  const al=alive(S);
-  let body='';
-  if(mine.role==='vampir'){
-    const done=S.night.vampVotes[me.id];
-    const counts={}; Object.values(S.night.vampVotes).forEach(t=>counts[t]=(counts[t]||0)+1);
-    const vamps=al.filter(p=>p.role==='vampir');
-    body=`<div class="card"><h2>🧛 Kurbanını seç</h2>
-      ${vamps.length>1?`<p class="note" style="text-align:left">Vampirler: ${vamps.map(v=>esc(v.name)).join(', ')} — en çok oy alan ölür.</p>`:''}
-      ${pickList(al.filter(p=>p.role!=='vampir'), done||localSel, {counts})}
-      <button class="btn" id="bConfirm" ${(!localSel||done)?'disabled':''}>${done?'Seçimin kaydedildi':'Öldür'}</button></div>`;
-  } else if(mine.role==='doktor'){
-    const done=S.night.doctor;
-    body=`<div class="card"><h2>🩺 Kimi koruyacaksın?</h2>${pickList(al, done||localSel)}
-      <button class="btn green" id="bConfirm" ${(!localSel||done)?'disabled':''}>${done?'Koruma kaydedildi':'Koru'}</button></div>`;
-  } else if(mine.role==='kahin'){
-    const done=S.night.seer;
-    if(done){ const t=P(S,done); body=`<div class="card" style="text-align:center"><h2>🔮 Kehanet</h2><p style="font-size:18px;margin:14px 0"><b>${esc(t?.name)}</b> ${S.night.seerResult?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}</p><p class="note">Bu bilgiyi sadece sen biliyorsun.</p></div>`; }
-    else body=`<div class="card"><h2>🔮 Kimi araştıracaksın?</h2>${pickList(al.filter(p=>p.id!==me.id), localSel)}
-      <button class="btn blue" id="bConfirm" ${!localSel?'disabled':''}>Araştır</button></div>`;
-  } else {
-    body=`<div class="card" style="text-align:center"><div style="font-size:60px">😴</div><h2>Uyuyorsun</h2><p class="note">Gece bitene kadar bekle. Telefonuna bakıyormuş gibi yap, kimse rolünü anlamasın.</p></div>`;
-  }
-  if(isHost) body+=hostBtn('Geceyi zorla bitir','sec');
-  return head+body;
-}
-function viewDawn(mine){
-  const ln=S.lastNight||{};
-  const k = ln.killed?P(S,ln.killed):null;
-  return `<div class="banner day"><div class="big">🌅</div><div class="t">Sabah oldu</div>
-    <div style="margin-top:12px;font-size:20px;font-weight:800">${k?`<span class="bad">${esc(k.name)}</span> bu gece öldürüldü.`:(ln.saved?`<span class="ok">Doktor birini kurtardı!</span> Kimse ölmedi.`:`Kimse ölmedi.`)}</div>
-    ${k?`<div class="d">Rolü: ${ROLES[k.role].ic} ${ROLES[k.role].name}</div>`:''}</div>
-    ${!mine?.alive&&mine?`<p class="note">Öldün. Artık izleyicisin; oyunun sonuna kadar rolleri görebilirsin.</p>`:''}
-    ${seerNote(mine)}
-    ${hostBtn('Tartışmayı başlat')}
-    ${playersCard()}`;
-}
-function seerNote(mine){
-  const sr=S.lastNight?.seer; if(!mine||mine.role!=='kahin'||!sr) return '';
-  const t=P(S,sr.target); if(!t) return '';
-  return `<div class="card" style="text-align:center;border-color:var(--blue)"><b>🔮 Kehanetin:</b> <b>${esc(t.name)}</b> ${sr.isVamp?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}<div class="note">Sadece sen görüyorsun.</div></div>`;
-}
-function viewDiscussion(mine){
-  return `<div class="banner day"><div class="big">☀️</div><div class="t">Tartışma</div><div class="d">Kim vampir? Konuşun, şüphelenin.</div></div>
-    <div class="timer" id="timer">--</div>
-    ${seerNote(mine)}
-    ${hostBtn('Oylamaya geç')}
-    ${playersCard()}`;
-}
-function viewVote(mine){
-  const al=alive(S);
-  const myVote=S.votes[me.id];
-  const canVote = mine && mine.alive;
-  const voted=Object.keys(S.votes).length;
-  return `<div class="banner day"><div class="big">⚖️</div><div class="t">Oylama</div><div class="d">Kim asılsın? ${voted}/${al.length} oy verildi</div></div>
-    <div class="timer" id="timer">--</div>
-    ${canVote?`<div class="card">${pickList(al.filter(p=>p.id!==me.id), myVote!==undefined?myVote:localSel)}
-      <div class="row"><button class="btn sec" id="bSkip" ${myVote!==undefined?'disabled':''}>${myVote==='skip'?'Çekimser oy verdin':'Çekimser'}</button>
-      <button class="btn" id="bConfirm" ${(!localSel||myVote!==undefined)?'disabled':''}>${myVote&&myVote!=='skip'?'Oy verildi':'As'}</button></div></div>`
-      :spectator()}
-    ${isHost?hostBtn('Oylamayı bitir','sec'):''}`;
-}
-function viewVerdict(mine){
-  const lv=S.lastVote||{};
-  const list=alive(S).concat(S.players.filter(p=>!p.alive&&p.id===lv.hanged));
-  return `<div class="banner day"><div class="big">${lv.hanged?'🪢':'🤷'}</div><div class="t">Karar</div>
-    <div style="margin-top:12px;font-size:20px;font-weight:800">${lv.hanged?`<span class="bad">${esc(lv.name)}</span> asıldı.`:(lv.tie?'Oylar eşit, kimse asılmadı.':'Kimse asılmadı.')}</div>
-    ${lv.hanged?`<div class="d">Rolü: ${ROLES[lv.role].ic} ${ROLES[lv.role].name}</div>`:''}</div>
-    <div class="card"><h2 style="font-size:16px">Oylar</h2><ul class="plist">${S.players.filter(p=>lv.tally&&lv.tally[p.id]).sort((a,b)=>lv.tally[b.id]-lv.tally[a.id]).map(p=>`<li>${avatar(p)}<span class="nm">${esc(p.name)}</span><span class="cnt">${lv.tally[p.id]}</span></li>`).join('')}${lv.skip?`<li><span class="av">–</span><span class="nm">Çekimser</span><span class="cnt">${lv.skip}</span></li>`:''}</ul></div>
-    ${hostBtn('Geceye geç')}`;
-}
-function viewEnd(mine){
-  const w=S.winner;
-  return `<div class="banner ${w==='vampir'?'night':'day'}"><div class="big">${w==='vampir'?'🧛':'🏆'}</div><div class="t">${w==='vampir'?'Vampirler kazandı!':'Köylüler kazandı!'}</div>
-    <div class="d">${w==='vampir'?'Köy karanlığa gömüldü.':'Tüm vampirler yok edildi.'}</div></div>
-    <div class="card"><h2 style="font-size:16px">Roller</h2><ul class="plist">${S.players.map(p=>`<li class="${p.alive?'':'dead'}">${avatar(p)}<span class="nm">${esc(p.name)}</span><span class="tag">${ROLES[p.role].ic} ${ROLES[p.role].name}</span></li>`).join('')}</ul></div>
-    ${isHost?`<button class="btn" id="bRestart">Yeni Oyun (aynı oyuncular)</button>`:'<p class="note pulse">Anlatıcı yeni oyun başlatabilir.</p>'}
-    <button class="btn sec" id="bLeave">Odadan Ayrıl</button>`;
-}
-function spectator(){
-  const mine=P(S,me.id);
-  return `<div class="card" style="text-align:center"><div style="font-size:50px">👻</div><h2>${mine?'İzliyorsun':'Odaya sonradan geldin'}</h2><p class="note">Oyun devam ediyor. Sonuna kadar izleyebilirsin.</p></div>${playersCard(true)}`;
-}
-function playersCard(showRoles){
-  const mine=P(S,me.id); const reveal = showRoles || (mine && !mine.alive) || S.phase==='end';
-  return `<div class="card"><h2 style="font-size:16px">Köy</h2><ul class="plist">${S.players.map(p=>`<li class="${p.alive?'':'dead'} ${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)}</span>${(!p.alive||reveal)&&p.role?`<span class="tag">${ROLES[p.role].ic} ${ROLES[p.role].name}</span>`:''}<span class="dot ${p.connected?'':'off'}"></span></li>`).join('')}</ul>
-  ${S.log.length?`<div class="log" style="margin-top:10px">${S.log.slice(0,6).map(esc).join('<br>')}</div>`:''}</div>`;
-}
-
 function bindGame(mine){
   const q=(s)=>$(s);
   const saveSettings=()=>send({type:'settings',settings:{discussionSec:Math.max(15,+q('#sDisc').value||120), voteSec:Math.max(15,+q('#sVote').value||60)}});
   q('#sDisc')&&(q('#sDisc').onchange=saveSettings); q('#sVote')&&(q('#sVote').onchange=saveSettings);
-  q('#bStart')&&(q('#bStart').onclick=()=>{ saveSettings(); send({type:'start'}); });
-  q('#bLeave')&&(q('#bLeave').onclick=()=>{ send({type:'leave'}); if(channel){supabase.removeChannel(channel);channel=null;} S=null; isHost=false; screen='home'; render(); });
+  q('#bStart')&&(q('#bStart').onclick=()=>{ unlockAudio(); saveSettings(); send({type:'start'}); });
+  q('#bLeave')&&(q('#bLeave').onclick=()=>leaveRoom());
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>send({type:'kick',target:b.dataset.kick}));
-  q('#bAck')&&(q('#bAck').onclick=()=>send({type:'ackRole'}));
-  q('#bNext')&&(q('#bNext').onclick=()=>{ localSel=null; send({type:'next'}); });
-  q('#bRestart')&&(q('#bRestart').onclick=()=>{ localSel=null; send({type:'restart'}); });
-  document.querySelectorAll('[data-pick]').forEach(li=>li.onclick=()=>{ localSel=li.dataset.pick; render(); });
-  q('#bConfirm')&&(q('#bConfirm').onclick=()=>{ if(!localSel) return; const t=localSel; localSel=null; send({type: S.phase==='vote'?'vote':'night', target:t}); });
-  q('#bSkip')&&(q('#bSkip').onclick=()=>{ localSel=null; send({type:'vote',target:'skip'}); });
 }
-
-/* ================== ANLATICI METİNLERİ ================== */
-function narrate(mine){
-  const key=S.code+':'+S.phase+':'+S.day+':'+(S.phase==='end'?S.winner:'');
-  if(key===lastPhaseSpoken) return; lastPhaseSpoken=key;
-  localSel=null;
-  let t='';
-  switch(S.phase){
-    case 'roles': t='Roller dağıtıldı. Herkes telefonundaki rolüne gizlice baksın ve kimseye göstermesin.'; break;
-    case 'night': t= S.day===1 ? 'Gece oluyor. Köy uykuya dalıyor. Vampirler, uyanın ve kurbanınızı seçin. Doktor, koruyacağın kişiyi seç. Kâhin, araştıracağın kişiyi seç.' : `Gece ${S.day}. Köy yeniden uykuya dalıyor. Vampirler, doktor ve kâhin, telefonlarınızdan seçiminizi yapın.`; break;
-    case 'dawn': { const ln=S.lastNight||{}; const k=ln.killed?P(S,ln.killed):null; t= k ? `Sabah oldu. Köylüler uyanıyor. Ne yazık ki ${k.name} bu gece öldürüldü. ${k.name}, ${ROLES[k.role].name} idi.` : (ln.saved?'Sabah oldu. Vampirler saldırdı ama doktor zamanında yetişti. Bu gece kimse ölmedi.':'Sabah oldu. Bu gece kimse ölmedi.'); break; }
-    case 'discussion': t=`Tartışma başlıyor. ${S.settings.discussionSec} saniyeniz var. Kim vampir? Konuşun.`; break;
-    case 'vote': t='Oylama zamanı. Herkes telefonundan asılmasını istediği kişiyi seçsin.'; break;
-    case 'verdict': { const lv=S.lastVote||{}; t= lv.hanged ? `Köy kararını verdi. ${lv.name} asıldı. ${lv.name}, ${ROLES[lv.role].name} idi.` : (lv.tie?'Oylar eşit çıktı. Bugün kimse asılmadı.':'Köy kimseyi asmamaya karar verdi.'); break; }
-    case 'end': t= S.winner==='vampir' ? 'Oyun bitti. Vampirler köyü ele geçirdi. Vampirler kazandı!' : 'Oyun bitti. Son vampir de yok edildi. Köylüler kazandı!'; break;
-  }
-  if(t) voice.speak(t);
-}
-
-/* ================== SAYAÇ ================== */
-function runTimer(){
-  clearInterval(timerTick);
-  const el=$('#timer'); if(!el||!S.timerEnd) return;
-  const upd=()=>{ const s=Math.max(0,Math.ceil((S.timerEnd-Date.now())/1000)); el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; el.classList.toggle('warn',s<=10); if(s<=0) clearInterval(timerTick); };
-  upd(); timerTick=setInterval(upd,500);
-}
-
 /* ================== PWA ================== */
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.hostname)){
   window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
