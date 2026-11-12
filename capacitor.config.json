@@ -1,0 +1,6 @@
+{
+  "appId": "com.vampirkoylu.app",
+  "appName": "Vampir Köylü",
+  "webDir": "www",
+  "android": { "allowMixedContent": false, "backgroundColor": "#0b0a12" }
+}

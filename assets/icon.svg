@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="110%" r="90%">
+      <stop offset="0" stop-color="#4a0712"/>
+      <stop offset="0.45" stop-color="#160409"/>
+      <stop offset="1" stop-color="#020102"/>
+    </radialGradient>
+    <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#f0c67a" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#f0c67a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moon" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#fff1cc"/>
+      <stop offset="0.75" stop-color="#e7b95f"/>
+      <stop offset="1" stop-color="#a86a2a"/>
+    </radialGradient>
+    <!-- cilt: sağdan ay ışığı, soldan kırmızı sıcak ışık, orta gölge -->
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1a0408"/>
+      <stop offset="0.32" stop-color="#3a1a24"/>
+      <stop offset="0.55" stop-color="#9c8a98"/>
+      <stop offset="0.8" stop-color="#e6dde4"/>
+      <stop offset="1" stop-color="#f6f1f3"/>
+    </linearGradient>
+    <linearGradient id="skinV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".55"/>
+      <stop offset="0.25" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.8" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".6"/>
+    </linearGradient>
+    <radialGradient id="cheek" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#2a0d16" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#2a0d16" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="socket" cx="50%" cy="45%" r="55%">
+      <stop offset="0" stop-color="#1a0810" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#1a0810" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="38%" cy="32%" r="70%">
+      <stop offset="0" stop-color="#ffb3a0"/>
+      <stop offset="0.35" stop-color="#ff3b4a"/>
+      <stop offset="0.75" stop-color="#9c0516"/>
+      <stop offset="1" stop-color="#3a0008"/>
+    </radialGradient>
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff2a3c" stop-opacity=".85"/>
+      <stop offset="0.5" stop-color="#ff2a3c" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#ff2a3c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="0.6" stop-color="#0a0609"/>
+      <stop offset="1" stop-color="#2a2230"/>
+    </linearGradient>
+    <linearGradient id="lining" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8102a"/>
+      <stop offset="1" stop-color="#2a0309"/>
+    </linearGradient>
+    <linearGradient id="fang" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#b9bcc8"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="72%">
+      <stop offset="0.5" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".85"/>
+    </radialGradient>
+    <filter id="b10"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="b25"><feGaussianBlur stdDeviation="25"/></filter>
+    <filter id="b60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="3"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.07"/></feComponentTransfer>
+    </filter>
+    <clipPath id="face">
+      <path d="M512 120 C 720 120 760 330 748 470 C 738 640 650 760 512 800 C 374 760 286 640 276 470 C 264 330 304 120 512 120 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- ay, sağ üst arkada -->
+  <circle cx="820" cy="200" r="330" fill="url(#moonGlow)"/>
+  <circle cx="820" cy="200" r="170" fill="url(#moon)"/>
+  <g opacity=".25" fill="#7a4a18"><circle cx="780" cy="150" r="24"/><circle cx="870" cy="240" r="34"/><circle cx="860" cy="130" r="14"/></g>
+
+  <!-- yarasalar (ay önünde) -->
+  <g fill="#050205">
+    <path d="M760 110 c16 -30 44 -26 50 -4 c10 -18 38 -20 48 2 c-18 -2 -28 8 -32 18 c-6 -8 -18 -6 -20 5 c-7 -12 -19 -12 -26 -3 c-5 -10 -15 -15 -20 -18z"/>
+    <path d="M905 300 c12 -22 32 -18 36 -3 c7 -13 27 -14 34 1 c-13 0 -20 6 -23 13 c-5 -6 -13 -4 -15 3 c-5 -8 -13 -8 -18 -2 c-4 -7 -10 -10 -14 -12z"/>
+  </g>
+
+  <!-- sis -->
+  <g filter="url(#b60)" opacity=".5"><ellipse cx="512" cy="980" rx="560" ry="110" fill="#6b1020"/></g>
+
+  <!-- pelerin yakaları (yüzün arkasında, yüksek) -->
+  <path d="M120 1024 L190 620 C 250 540 330 520 400 560 L470 780 L380 1024 Z" fill="#06030a"/>
+  <path d="M904 1024 L834 620 C 774 540 694 520 624 560 L554 780 L644 1024 Z" fill="#06030a"/>
+  <path d="M190 620 C 250 540 330 520 400 560 L470 780 L430 760 C 380 600 300 560 230 640 Z" fill="url(#lining)" opacity=".9"/>
+  <path d="M834 620 C 774 540 694 520 624 560 L554 780 L594 760 C 644 600 724 560 794 640 Z" fill="url(#lining)" opacity=".9"/>
+
+  <!-- boyun -->
+  <path d="M430 720 L594 720 L610 860 L414 860 Z" fill="#5e4a56"/>
+  <path d="M430 720 L594 720 L580 800 L444 800 Z" fill="#000" opacity=".5"/>
+
+  <!-- YÜZ -->
+  <path d="M512 120 C 720 120 760 330 748 470 C 738 640 650 760 512 800 C 374 760 286 640 276 470 C 264 330 304 120 512 120 Z" fill="url(#skin)"/>
+  <g clip-path="url(#face)">
+    <rect x="200" y="100" width="640" height="720" fill="url(#skinV)"/>
+    <!-- elmacıklar, çene -->
+    <ellipse cx="640" cy="520" rx="80" ry="130" fill="url(#cheek)"/>
+    <ellipse cx="400" cy="520" rx="90" ry="140" fill="url(#cheek)"/>
+    <ellipse cx="512" cy="770" rx="170" ry="60" fill="#000" opacity=".5" filter="url(#b25)"/>
+    <!-- burun kemiği ışık -->
+    <path d="M520 420 C 528 480 540 560 536 610 L 500 610 C 506 560 512 480 520 420 Z" fill="#fff" opacity=".18" filter="url(#b10)"/>
+    <!-- göz çukurları -->
+    <ellipse cx="420" cy="440" rx="95" ry="70" fill="url(#socket)"/>
+    <ellipse cx="604" cy="440" rx="95" ry="70" fill="url(#socket)"/>
+    <!-- alın ışığı -->
+    <ellipse cx="600" cy="260" rx="120" ry="70" fill="#fff" opacity=".25" filter="url(#b25)"/>
+    <!-- doku -->
+    <rect x="260" y="100" width="520" height="720" filter="url(#grain)"/>
+  </g>
+
+  <!-- kaşlar: çatık, keskin -->
+  <path d="M330 420 C 380 370 450 372 498 410 C 450 400 380 404 330 420 Z" fill="#0a0407"/>
+  <path d="M694 420 C 644 370 574 372 526 410 C 574 400 644 404 694 420 Z" fill="#0a0407"/>
+
+  <!-- gözler: dar, parlak -->
+  <circle cx="424" cy="456" r="85" fill="url(#eyeGlow)"/>
+  <circle cx="600" cy="456" r="85" fill="url(#eyeGlow)"/>
+  <path d="M352 456 C 380 426 460 422 496 456 C 460 482 380 486 352 456 Z" fill="#efe6ec"/>
+  <path d="M672 456 C 644 426 564 422 528 456 C 564 482 644 486 672 456 Z" fill="#efe6ec"/>
+  <circle cx="424" cy="456" r="26" fill="url(#iris)"/>
+  <circle cx="600" cy="456" r="26" fill="url(#iris)"/>
+  <ellipse cx="424" cy="457" rx="5" ry="16" fill="#0a0003"/>
+  <ellipse cx="600" cy="457" rx="5" ry="16" fill="#0a0003"/>
+  <circle cx="414" cy="446" r="6" fill="#fff"/>
+  <circle cx="590" cy="446" r="6" fill="#fff"/>
+  <!-- üst kapak gölgesi (bakışı sertleştirir) -->
+  <path d="M352 456 C 380 426 460 422 496 456 C 460 444 380 446 352 456 Z" fill="#1a0810" opacity=".9"/>
+  <path d="M672 456 C 644 426 564 422 528 456 C 564 444 644 446 672 456 Z" fill="#1a0810" opacity=".9"/>
+  <!-- alt kapak çizgisi -->
+  <path d="M360 462 C 390 484 460 486 492 466" fill="none" stroke="#3a1a24" stroke-width="3" opacity=".7"/>
+  <path d="M664 462 C 634 484 564 486 532 466" fill="none" stroke="#3a1a24" stroke-width="3" opacity=".7"/>
+
+  <!-- burun ucu -->
+  <path d="M488 612 C 500 626 524 626 538 612" fill="none" stroke="#2a1018" stroke-width="6" stroke-linecap="round" opacity=".8"/>
+  <ellipse cx="546" cy="604" rx="12" ry="8" fill="#000" opacity=".35"/>
+  <ellipse cx="482" cy="604" rx="12" ry="8" fill="#000" opacity=".5"/>
+
+  <!-- ağız: hafif aralık, sırıtan -->
+  <path d="M410 670 C 450 650 574 650 614 670 C 580 700 444 700 410 670 Z" fill="#1a0308"/>
+  <path d="M410 670 C 450 656 574 656 614 670" fill="none" stroke="#0a0104" stroke-width="5"/>
+  <path d="M430 676 C 470 690 554 690 594 676 C 560 686 464 686 430 676 Z" fill="#6b0b1a"/>
+  <!-- dişler -->
+  <path d="M448 672 L462 736 L482 674 Z" fill="url(#fang)"/>
+  <path d="M542 674 L562 736 L576 672 Z" fill="url(#fang)"/>
+  <path d="M450 672 L462 700 L458 672 Z" fill="#fff"/>
+  <!-- küçük dişler -->
+  <path d="M486 676 L494 696 L502 676 Z M506 677 L512 694 L518 677 Z M522 677 L528 694 L534 677 Z" fill="#d8d3dc" opacity=".8"/>
+  <!-- kan -->
+  <path d="M462 734 c-9 16 -3 30 2 32 c6 -2 11 -16 -2 -32z" fill="#d1122c"/>
+  <path d="M562 734 c-5 10 -1 18 2 19 c3 -1 6 -9 -2 -19z" fill="#d1122c"/>
+
+  <!-- SAÇ: geriye taranmış, karanlığa karışır -->
+  <path d="M276 470 C 250 260 330 100 512 96 C 694 100 774 260 748 470 C 740 330 700 280 650 290 C 610 250 580 240 512 300 C 444 240 414 250 374 290 C 324 280 284 330 276 470 Z" fill="url(#hair)"/>
+  <path d="M512 300 C 580 240 610 250 650 290 L 620 340 C 590 300 560 300 540 330 C 530 310 520 305 512 320 C 504 305 494 310 484 330 C 464 300 434 300 404 340 L 374 290 C 414 250 444 240 512 300 Z" fill="#000" opacity=".7"/>
+  <!-- saç parlaması (ay tarafı) -->
+  <path d="M560 140 C 640 140 700 190 724 260 C 690 210 630 170 560 160 Z" fill="#6a5f78" opacity=".45" filter="url(#b10)"/>
+  <!-- saç kenarı karanlığa geçiş -->
+  <path d="M276 470 C 250 260 330 100 512 96 L 512 180 C 380 190 300 300 276 470 Z" fill="#000" opacity=".8" filter="url(#b25)"/>
+
+  <!-- sol taraf derin gölge (yüzün karanlığa gömülmesi) -->
+  <rect x="0" y="0" width="330" height="1024" fill="#000" opacity=".55" filter="url(#b60)"/>
+
+  <rect width="1024" height="1024" fill="url(#vignette)"/>
+</svg>

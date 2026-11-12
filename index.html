@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0a12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vampir Köylü">
+<meta name="description" content="Arkadaşlarla veya yapay zekâya karşı Vampir Köylü.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Vampir Köylü</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a12; --bg2:#15131f; --card:#1d1a2b; --card2:#262238;
+    --text:#ece7f5; --muted:#9b94b3; --blood:#c0202e; --blood2:#e23b4a;
+    --gold:#d9a441; --green:#3fb37f; --blue:#4f8de6; --line:#33304a;
+    --r:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  button,.pick{-webkit-user-select:none;user-select:none}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Nunito',system-ui,sans-serif;overscroll-behavior:none}
+  body{display:flex;flex-direction:column;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  #app{flex:1;display:flex;flex-direction:column;max-width:520px;width:100%;margin:0 auto;padding:16px}
+  h1,h2,.title{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0}
+  h1{font-size:34px;text-align:center;color:var(--blood2);text-shadow:0 0 24px rgba(226,59,74,.35)}
+  h2{font-size:22px;color:var(--gold)}
+  .sub{color:var(--muted);text-align:center;margin:6px 0 24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font:800 17px 'Nunito',sans-serif;color:#fff;background:var(--blood);cursor:pointer;margin-top:10px;transition:transform .08s,filter .15s}
+  .btn:active{transform:scale(.98);filter:brightness(1.15)}
+  .btn.sec{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+  .btn.gold{background:var(--gold);color:#1a1200}
+  .btn.green{background:var(--green);color:#03150c}
+  .btn.blue{background:var(--blue)}
+  .btn:disabled{opacity:.4;filter:none;transform:none;cursor:default}
+  .btn.sm{padding:10px 14px;font-size:14px;width:auto;display:inline-block;margin:0}
+  input{width:100%;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font:600 18px 'Nunito',sans-serif;outline:none;margin-top:8px}
+  input:focus{border-color:var(--gold)}
+  input.code{text-transform:uppercase;letter-spacing:8px;text-align:center;font-family:'Cinzel',serif;font-size:26px}
+  label{font-size:13px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:1px}
+  .row{display:flex;gap:10px;align-items:center}
+  .row>*{flex:1}
+  .codebox{text-align:center;padding:14px;border-radius:14px;background:var(--bg2);border:1px dashed var(--gold)}
+  .codebox .c{font-family:'Cinzel',serif;font-size:40px;letter-spacing:10px;color:var(--gold);font-weight:800}
+  .plist{list-style:none;padding:0;margin:10px 0 0}
+  .plist li{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--bg2);margin-bottom:8px;border:1px solid transparent}
+  .plist li.dead{opacity:.45;text-decoration:line-through}
+  .plist li.sel{border-color:var(--gold);background:#2a2335}
+  .plist li.me{border-color:var(--blue)}
+  .plist li .av{width:36px;height:36px;border-radius:50%;background:var(--card2);display:grid;place-items:center;font-weight:800;color:var(--gold);flex:none}
+  .plist li .nm{flex:1;font-weight:800;font-size:16px}
+  .plist li .tag{font-size:12px;color:var(--muted);font-weight:800}
+  .plist li .dot{width:9px;height:9px;border-radius:50%;background:var(--green);flex:none}
+  .plist li .dot.off{background:#666}
+  .plist li.pick{cursor:pointer}
+  .plist li .cnt{background:var(--blood);color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:800}
+  .rolecard{text-align:center;padding:30px 18px;border-radius:24px;border:2px solid var(--line);background:radial-gradient(ellipse at top,#2a2440,#15131f 70%)}
+  .rolecard .ic{font-size:84px;line-height:1;margin-bottom:12px;filter:drop-shadow(0 0 18px rgba(0,0,0,.6))}
+  .rolecard .rn{font-family:'Cinzel',serif;font-size:30px;font-weight:800}
+  .rolecard .rd{color:var(--muted);margin-top:10px;line-height:1.5}
+  .rolecard.vampir{border-color:var(--blood2)} .rolecard.vampir .rn{color:var(--blood2)}
+  .rolecard.doktor{border-color:var(--green)} .rolecard.doktor .rn{color:var(--green)}
+  .rolecard.kahin{border-color:var(--blue)} .rolecard.kahin .rn{color:var(--blue)}
+  .rolecard.koylu{border-color:var(--gold)} .rolecard.koylu .rn{color:var(--gold)}
+  .hidden{display:none}
+  .banner{text-align:center;padding:22px;border-radius:var(--r);margin-bottom:14px}
+  .banner.night{background:linear-gradient(135deg,#131a3a,#0b0a12);border:1px solid #2a3570}
+  .banner.day{background:linear-gradient(135deg,#4a3410,#1a1206);border:1px solid #7a5a1e}
+  .banner .big{font-size:56px;line-height:1}
+  .banner .t{font-family:'Cinzel',serif;font-size:22px;margin-top:6px}
+  .banner .d{color:var(--muted);margin-top:6px}
+  .timer{font-family:'Cinzel',serif;font-size:40px;text-align:center;color:var(--gold);margin:4px 0}
+  .timer.warn{color:var(--blood2)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#2a2335;color:#fff;padding:12px 18px;border-radius:12px;border:1px solid var(--gold);font-weight:800;z-index:99;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted);font-weight:800}
+  .topbar .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .topbar button{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 12px;font:800 13px 'Nunito',sans-serif}
+  .note{font-size:13px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.5}
+  .log{font-size:13px;color:var(--muted);max-height:120px;overflow:auto;line-height:1.6}
+  .fade{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .pulse{animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .ok{color:var(--green);font-weight:800}
+  .bad{color:var(--blood2);font-weight:800}
+  .moon{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 80% -10%,rgba(80,100,220,.18),transparent 45%);z-index:-1}
+  /* --- mod seçimi --- */
+  .mode{display:flex;gap:14px;align-items:center;text-align:left;padding:18px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);margin-bottom:12px;cursor:pointer;width:100%;color:var(--text);font-family:inherit}
+  .mode:active{filter:brightness(1.2)}
+  .mode .mi{font-size:40px;flex:none}
+  .mode .mt{font-family:'Cinzel',serif;font-size:18px;font-weight:800;color:var(--gold)}
+  .mode .md{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .mode.red .mt{color:var(--blood2)}
+  /* --- tek oyunculu --- */
+  .xpbar{height:8px;border-radius:999px;background:var(--bg2);overflow:hidden;margin-top:6px}
+  .xpbar div{height:100%;background:linear-gradient(90deg,var(--gold),#f3cf7a);transition:width .6s}
+  .lvls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}
+  .lvl{border:2px solid var(--line);background:var(--bg2);border-radius:14px;padding:8px 0 4px;color:var(--text);font-family:inherit;cursor:pointer}
+  .lvl .n{font-weight:800;font-size:17px}
+  .lvl .s{font-size:10px;color:var(--gold);letter-spacing:1px;min-height:12px}
+  .lvl.lock{opacity:.4;border-style:dashed}
+  .lvl.done{background:#2a2335}
+  .lvl.boss{background:linear-gradient(135deg,#3a2a10,#1d1a2b)}
+  .lvl:active{transform:scale(.95)}
+  .big{font-family:'Cinzel',serif;font-size:26px;font-weight:800;margin-top:2px}
+  .obj{padding:8px 12px;border-radius:10px;background:var(--bg2);margin-top:6px;font-weight:800;font-size:14px}
+  .obj.ok{color:var(--green)} .obj.bad{color:var(--muted)}
+  .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .acts .btn.sm{flex:1 1 40%}
+  .villagers{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .vp{background:var(--bg2);border-radius:999px;padding:5px 10px;font-size:13px;font-weight:800}
+  .feed{flex:1;min-height:180px;max-height:46vh;overflow-y:auto;padding:6px 2px;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+  .feed.small{max-height:26vh;min-height:100px}
+  .fsep{text-align:center;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:2px;margin:10px 0 6px;text-transform:uppercase}
+  .fnarr{text-align:center;color:var(--gold);font-size:13px;font-style:italic;margin:6px 0}
+  .fb{display:flex;gap:8px;margin:6px 0;align-items:flex-end}
+  .fb .fav{width:34px;height:34px;border-radius:50%;background:var(--card2);display:grid;place-items:center;font-size:18px;flex:none}
+  .fb .fbody{background:var(--card);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:8px 12px;max-width:82%;font-size:14px;line-height:1.4}
+  .fb .fname{font-size:11px;color:var(--muted);font-weight:800;margin-bottom:2px}
+  .fb.me{flex-direction:row-reverse} .fb.me .fbody{background:#2a2335;border-color:var(--blue);border-radius:14px 14px 4px 14px}
+  .fb.quiet .fbody{color:var(--muted);font-style:italic}
+  .stars{font-size:44px;letter-spacing:6px;margin-top:8px;color:#3a3550}
+  .stars span.on{color:var(--gold);text-shadow:0 0 18px rgba(217,164,65,.6)}
+  .stars.won span.on{animation:pop .5s both}
+  @keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.4)}100%{transform:scale(1);opacity:1}}
+  input[type=range]{padding:0;margin:6px 0 14px;accent-color:var(--gold);background:transparent;border:0}
+</style>
+</head>
+<body>
+<div class="moon"></div>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { createClient } from './supabase.js';
+import { mountSolo } from './solo.js';
+
+/* ================== AYARLAR ================== */
+const SUPABASE_URL = 'https://jqbokjkswdkhvdeegfbh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Vpnzl1uasuRis03GAQJIpg_PldkwGIP';
+const MIN_PLAYERS = 4;
+const DEFAULTS = { discussionSec: 120, voteSec: 60 };
+
+const ROLES = {
+  vampir: { name:'Vampir', ic:'🧛', desc:'Her gece diğer vampirlerle birlikte bir köylüyü seçip öldürürsünüz. Gündüz kimliğinizi gizleyin. Köylü sayısı vampir sayısına eşitlenince kazanırsınız.' },
+  doktor: { name:'Doktor', ic:'🩺', desc:'Her gece bir kişiyi korursun. Vampirler o kişiyi seçerse hayatta kalır. Kendini de koruyabilirsin.' },
+  kahin:  { name:'Kâhin',  ic:'🔮', desc:'Her gece bir kişiyi seçersin ve onun vampir olup olmadığını öğrenirsin. Bilgini akıllıca kullan.' },
+  koylu:  { name:'Köylü',  ic:'🧑‍🌾', desc:'Özel bir yeteneğin yok ama oyun sende biter. Tartış, şüphelen, doğru kişiyi as. Tüm vampirler asılınca kazanırsınız.' },
+};
+
+/* ================== YARDIMCILAR ================== */
+const $ = (s)=>document.querySelector(s);
+const app = $('#app');
+const uid = ()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const esc = (s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle = (a)=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const genCode = ()=>{const L='ABCDEFGHJKLMNPRSTUVYZ';let c='';for(let i=0;i<4;i++)c+=L[Math.floor(Math.random()*L.length)];return c;};
+let toastT; function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* ================== SES (ANLATICI) ================== */
+const voice = {
+  on: localStorage.getItem('vk_voice') === '1',
+  set(v){ this.on=v; localStorage.setItem('vk_voice', v?'1':'0'); },
+  speak(text){
+    if(!this.on || !('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang='tr-TR'; u.rate=0.92; u.pitch=0.85;
+      const v = speechSynthesis.getVoices().find(v=>v.lang && v.lang.toLowerCase().startsWith('tr'));
+      if(v) u.voice=v;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+};
+if('speechSynthesis' in window) speechSynthesis.getVoices();
+
+/* Ekranı açık tut */
+let wakeLock=null;
+async function keepAwake(){ try{ if('wakeLock' in navigator && !wakeLock){ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>wakeLock=null);} }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') keepAwake(); });
+
+/* ================== BAĞLANTI ================== */
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let channel=null;
+let me = { id: localStorage.getItem('vk_pid') || (()=>{const i=uid();localStorage.setItem('vk_pid',i);return i;})(), name: localStorage.getItem('vk_name')||'' };
+let isHost=false;
+let S=null;            // oyun durumu (herkes için)
+let screen='mode';     // mode | solo | home | join | game
+let joinTimeout=null;
+let localSel=null;     // seçim (hedef)
+let timerTick=null;
+let lastPhaseSpoken='';
+
+function connect(code, onReady){
+  if(channel){ supabase.removeChannel(channel); channel=null; }
+  channel = supabase.channel('vk-'+code, { config:{ broadcast:{ self:false, ack:false } } });
+  channel
+    .on('broadcast', {event:'action'}, ({payload})=>{ if(isHost) hostHandle(payload); })
+    .on('broadcast', {event:'state'},  ({payload})=>{ if(!isHost) applyState(payload); })
+    .on('broadcast', {event:'ping'},   ({payload})=>{ if(isHost && payload.code===S?.code) hostHandle({type:'hello', from:payload.from}); })
+    .subscribe((status)=>{ if(status==='SUBSCRIBED'){ onReady&&onReady(); } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){ toast('Bağlantı sorunu, tekrar deneniyor…'); } });
+}
+function send(action){
+  action.from = me.id;
+  if(isHost){ hostHandle(action); }
+  else if(channel){ channel.send({type:'broadcast', event:'action', payload:action}); }
+}
+let bcastT=null;
+function broadcast(){
+  if(!isHost||!channel) return;
+  S.ts=Date.now();
+  channel.send({type:'broadcast', event:'state', payload:S});
+  render();
+}
+
+/* ================== OYUN MANTIĞI (HOST) ================== */
+function newState(code){
+  return { code, hostId: me.id, phase:'lobby', day:0, players:[], settings:{...DEFAULTS},
+    roleAck:{}, night:{vampVotes:{}, doctor:null, seer:null, seerResult:null}, lastNight:null,
+    votes:{}, lastVote:null, winner:null, timerEnd:null, log:[] };
+}
+const alive = (s)=>s.players.filter(p=>p.alive);
+const P = (s,id)=>s.players.find(p=>p.id===id);
+function roleCounts(n){ const v = n>=12?3 : n>=8?2 : 1; return { vampir:v, doktor:1, kahin:1, koylu:n-v-2 }; }
+
+function hostHandle(a){
+  if(!S) return;
+  const p = P(S,a.from);
+  switch(a.type){
+    case 'hello': case 'join': {
+      if(p){ p.connected=true; if(a.name) p.name=a.name; }
+      else if(S.phase==='lobby'){ S.players.push({id:a.from, name:a.name||'Oyuncu', alive:true, role:null, connected:true}); log(`${a.name} katıldı.`); }
+      else { /* oyun ortasında yeni oyuncu: izleyici olarak eklenmez, sadece state gönder */ }
+      break;
+    }
+    case 'leave': { if(S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.from); else if(p) p.connected=false; break; }
+    case 'kick': { if(a.from===S.hostId && S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.target); break; }
+    case 'settings': { if(a.from===S.hostId && S.phase==='lobby') S.settings={...S.settings,...a.settings}; break; }
+    case 'start': { if(a.from===S.hostId && S.phase==='lobby') startGame(); break; }
+    case 'ackRole': { if(S.phase==='roles'){ S.roleAck[a.from]=true; if(S.players.every(x=>S.roleAck[x.id])) toNight(); } break; }
+    case 'night': { if(S.phase==='night' && p && p.alive) nightAction(p,a.target); break; }
+    case 'vote': { if(S.phase==='vote' && p && p.alive){ S.votes[p.id]=a.target; if(alive(S).every(x=>S.votes[x.id]!==undefined)) resolveVote(); } break; }
+    case 'next': { if(a.from===S.hostId) hostNext(); break; }
+    case 'restart': { if(a.from===S.hostId) restart(); break; }
+  }
+  broadcast();
+}
+function log(t){ S.log.unshift(t); S.log=S.log.slice(0,40); }
+
+function startGame(){
+  const n=S.players.length; if(n<MIN_PLAYERS) return;
+  const rc=roleCounts(n); const pool=[];
+  for(const [r,c] of Object.entries(rc)) for(let i=0;i<c;i++) pool.push(r);
+  const sh=shuffle(pool);
+  S.players.forEach((p,i)=>{ p.role=sh[i]; p.alive=true; });
+  S.phase='roles'; S.day=0; S.roleAck={}; S.winner=null; S.lastNight=null; S.lastVote=null; S.log=[];
+  log(`Oyun başladı: ${rc.vampir} vampir, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`);
+}
+function toNight(){
+  S.phase='night'; S.day++; S.night={vampVotes:{}, doctor:null, seer:null, seerResult:null}; S.timerEnd=null;
+  // doktor/kâhin ölüyse otomatik tamam
+  checkNightDone();
+}
+function nightAction(p,target){
+  if(p.role==='vampir'){ S.night.vampVotes[p.id]=target; }
+  else if(p.role==='doktor'){ S.night.doctor=target; }
+  else if(p.role==='kahin'){ S.night.seer=target; const t=P(S,target); S.night.seerResult = t ? (t.role==='vampir') : null; }
+  checkNightDone();
+}
+function checkNightDone(){
+  const al=alive(S);
+  const vamps=al.filter(x=>x.role==='vampir');
+  const doc=al.find(x=>x.role==='doktor'); const seer=al.find(x=>x.role==='kahin');
+  const vampsDone = vamps.every(v=>S.night.vampVotes[v.id]);
+  const docDone = !doc || S.night.doctor; const seerDone = !seer || S.night.seer;
+  if(vampsDone && docDone && seerDone) resolveNight();
+}
+function resolveNight(){
+  const tally={}; Object.values(S.night.vampVotes).forEach(t=>{ if(t&&t!=='__none') tally[t]=(tally[t]||0)+1; });
+  let victim=null, max=0; for(const [t,c] of Object.entries(tally)){ if(c>max){max=c;victim=t;} }
+  const saved = victim && S.night.doctor===victim;
+  let killed=null;
+  if(victim && !saved){ const v=P(S,victim); if(v){ v.alive=false; killed=victim; } }
+  S.lastNight={killed, saved:!!saved, victimName: victim?P(S,victim)?.name:null,
+    seer: (S.night.seer && S.night.seer!=='__none') ? {target:S.night.seer, isVamp:S.night.seerResult} : null};
+  log(killed ? `Gece ${S.day}: ${P(S,killed).name} öldürüldü.` : `Gece ${S.day}: kimse ölmedi.`);
+  S.phase='dawn'; S.votes={};
+  if(!checkWin()) {}
+}
+function startDiscussion(){ S.phase='discussion'; S.timerEnd=Date.now()+S.settings.discussionSec*1000; armTimer(()=>{ if(S.phase==='discussion'){ startVote(); broadcast(); } }); }
+function startVote(){ S.phase='vote'; S.votes={}; S.timerEnd=Date.now()+S.settings.voteSec*1000; armTimer(()=>{ if(S.phase==='vote'){ resolveVote(); broadcast(); } }); }
+function resolveVote(){
+  clearTimeout(hostTimer); S.timerEnd=null;
+  const tally={}; let skip=0;
+  for(const [v,t] of Object.entries(S.votes)){ if(t==='skip'||!t) skip++; else tally[t]=(tally[t]||0)+1; }
+  let hanged=null, max=0, tie=false;
+  for(const [t,c] of Object.entries(tally)){ if(c>max){max=c;hanged=t;tie=false;} else if(c===max) tie=true; }
+  if(tie || max===0 || skip>=max) hanged=null;
+  const hp = hanged?P(S,hanged):null;
+  if(hp){ hp.alive=false; log(`Gün ${S.day}: ${hp.name} asıldı (${ROLES[hp.role].name}).`); } else log(`Gün ${S.day}: kimse asılmadı.`);
+  S.lastVote={hanged, tally, skip, tie, role: hp?hp.role:null, name: hp?hp.name:null};
+  S.phase='verdict';
+  checkWin();
+}
+function checkWin(){
+  const al=alive(S); const v=al.filter(x=>x.role==='vampir').length; const o=al.length-v;
+  if(v===0){ S.winner='koylu'; S.phase='end'; return true; }
+  if(v>=o){ S.winner='vampir'; S.phase='end'; return true; }
+  return false;
+}
+function hostNext(){
+  clearTimeout(hostTimer);
+  switch(S.phase){
+    case 'roles': toNight(); break;
+    case 'night': // zorla: eksik aksiyonları boş geç
+      { const al=alive(S); al.filter(x=>x.role==='vampir'&&!S.night.vampVotes[x.id]).forEach(x=>S.night.vampVotes[x.id]='__none'); S.night.doctor=S.night.doctor||'__none'; S.night.seer=S.night.seer||'__none'; resolveNight(); } break;
+    case 'dawn': startDiscussion(); break;
+    case 'discussion': startVote(); break;
+    case 'vote': resolveVote(); break;
+    case 'verdict': toNight(); break;
+  }
+}
+function restart(){ const players=S.players.map(p=>({...p, role:null, alive:true})); const code=S.code; const settings=S.settings; S=newState(code); S.players=players; S.settings=settings; }
+let hostTimer=null;
+function armTimer(fn){ clearTimeout(hostTimer); hostTimer=setTimeout(fn, Math.max(0,S.timerEnd-Date.now())+200); }
+
+/* ================== İSTEMCİ ================== */
+function applyState(s){
+  if(!s || (S && s.ts && S.ts && s.ts<S.ts)) return;
+  S=s; clearTimeout(joinTimeout); screen='game'; render();
+}
+
+/* ================== EKRANLAR ================== */
+let solo=null;
+function renderMode(){
+  app.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="fade">
+      <div style="text-align:center;font-size:84px;line-height:1;margin-bottom:8px">🧛</div>
+      <h1>VAMPİR KÖYLÜ</h1>
+      <p class="sub">Nasıl oynamak istersin?</p>
+      <div class="card" style="padding:12px 16px;margin-bottom:12px"><label>Adın</label><input id="mName" maxlength="14" placeholder="Örn: Ali" value="${esc(me.name)}"></div>
+      <button class="mode" id="mSolo"><span class="mi">🕯️</span><span><div class="mt">Tek Oyna</div><div class="md">Yapay zekâ köylülere karşı. 24 seviye, yıldızlar, rütbeler. İnternet gerekmez.</div></span></button>
+      <button class="mode red" id="mMulti"><span class="mi">👥</span><span><div class="mt">Arkadaşlarla Oyna</div><div class="md">Herkes kendi telefonundan. Biri oda açar, diğerleri koda girer.</div></span></button>
+    </div>`;
+  const saveName=()=>{ const n=$('#mName').value.trim(); if(n){ me.name=n; localStorage.setItem('vk_name',n); } return n; };
+  $('#mName').onchange=saveName;
+  $('#mSolo').onclick=()=>{ if(!saveName()){ toast('Önce adını yaz'); $('#mName').focus(); return; } voice.set(true); keepAwake(); if(!solo) solo=mountSolo({ app, esc, voice, toast, onExit:()=>{ screen='mode'; render(); } }); screen='solo'; solo.show(); };
+  $('#mMulti').onclick=()=>{ saveName(); screen='home'; render(); };
+}
+function render(){
+  if(screen==='mode') return renderMode();
+  if(screen==='solo') return; // solo kendi çizer
+  if(screen==='home') return renderHome();
+  if(screen==='create') return renderCreate();
+  if(screen==='join') return renderJoin();
+  if(screen==='game') return renderGame();
+}
+function renderHome(){
+  app.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="fade">
+      <div style="text-align:center;font-size:84px;line-height:1;margin-bottom:8px">🧛</div>
+      <h1>VAMPİR KÖYLÜ</h1>
+      <p class="sub">Arkadaşlarla oyna</p>
+      <div class="card">
+        <label>Adın</label>
+        <input id="name" maxlength="14" placeholder="Örn: Ali" value="${esc(me.name)}">
+        <button class="btn" id="bCreate">Oda Aç</button>
+        <button class="btn sec" id="bJoin">Odaya Katıl</button>
+      </div>
+      <button class="btn sec" id="bModeBack" style="margin-top:0">‹ Geri</button>
+      <p class="note">Oda açan telefon anlatıcı olur ve sesli konuşur.<br>Tüm telefonlar internete bağlı olmalı (Wi-Fi veya mobil veri).</p>
+    </div>`;
+  const nameEl=$('#name');
+  const getName=()=>{ const n=nameEl.value.trim(); if(!n){toast('Önce adını yaz');nameEl.focus();return null;} me.name=n; localStorage.setItem('vk_name',n); return n; };
+  $('#bModeBack').onclick=()=>{ screen='mode'; render(); };
+  $('#bCreate').onclick=()=>{ if(!getName()) return; createRoom(); };
+  $('#bJoin').onclick=()=>{ if(!getName()) return; screen='join'; render(); };
+}
+function createRoom(){
+  isHost=true; voice.set(true); keepAwake();
+  const code=genCode(); S=newState(code);
+  S.players.push({id:me.id,name:me.name,alive:true,role:null,connected:true});
+  screen='game'; render();
+  connect(code, ()=>broadcast());
+}
+function renderJoin(){
+  app.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="fade">
+      <h1 style="font-size:26px">ODAYA KATIL</h1>
+      <p class="sub">Oda açan arkadaşının ekranındaki 4 harfli kodu gir.</p>
+      <div class="card">
+        <label>Oda kodu</label>
+        <input id="code" class="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
+        <button class="btn" id="bGo">Katıl</button>
+        <button class="btn sec" id="bBack">Geri</button>
+      </div>
+    </div>`;
+  const c=$('#code'); c.focus();
+  $('#bBack').onclick=()=>{screen='home';render();};
+  $('#bGo').onclick=()=>{
+    const code=c.value.trim().toUpperCase(); if(code.length!==4){toast('4 harfli kod gir');return;}
+    isHost=false; voice.set(false); keepAwake();
+    $('#bGo').disabled=true; $('#bGo').textContent='Bağlanıyor…';
+    connect(code, ()=>{
+      send({type:'join', name:me.name});
+      joinTimeout=setTimeout(()=>{ toast('Oda bulunamadı. Kodu kontrol et.'); screen='join'; render(); }, 6000);
+    });
+  };
+}
+
+function topbar(){
+  const mine=P(S,me.id);
+  return `<div class="topbar">
+    <span class="pill">Oda <b style="color:var(--gold)">${S.code}</b></span>
+    <span class="pill">${S.phase==='lobby'?'Lobi':(S.day?('Gün '+S.day):'')}${mine&&mine.role&&S.phase!=='lobby'?' · '+ROLES[mine.role].ic:''}</span>
+    <button id="bVoice">${voice.on?'🔊 Ses açık':'🔇 Ses kapalı'}</button>
+  </div>`;
+}
+function bindTop(){ const b=$('#bVoice'); if(b) b.onclick=()=>{ voice.set(!voice.on); if(voice.on) voice.speak('Anlatıcı sesi açık.'); render(); }; }
+
+function renderGame(){
+  if(!S){ app.innerHTML='<p class="sub pulse">Bağlanıyor…</p>'; return; }
+  const mine=P(S,me.id);
+  let html=topbar();
+  switch(S.phase){
+    case 'lobby': html+=viewLobby(); break;
+    case 'roles': html+=viewRoles(mine); break;
+    case 'night': html+=viewNight(mine); break;
+    case 'dawn': html+=viewDawn(mine); break;
+    case 'discussion': html+=viewDiscussion(mine); break;
+    case 'vote': html+=viewVote(mine); break;
+    case 'verdict': html+=viewVerdict(mine); break;
+    case 'end': html+=viewEnd(mine); break;
+  }
+  app.innerHTML=`<div class="fade">${html}</div>`;
+  bindTop(); bindGame(mine); narrate(mine); runTimer();
+}
+
+const hostBtn=(label,cls='gold')=> isHost?`<button class="btn ${cls}" id="bNext">${label}</button>`:`<p class="note pulse">Anlatıcının (oda sahibi) devam etmesi bekleniyor…</p>`;
+const avatar=(p)=>`<span class="av">${esc(p.name[0].toUpperCase())}</span>`;
+
+function viewLobby(){
+  const n=S.players.length; const rc=roleCounts(Math.max(n,MIN_PLAYERS));
+  return `
+    <div class="codebox"><div style="font-size:12px;color:var(--muted);font-weight:800;letter-spacing:2px">ODA KODU</div><div class="c">${S.code}</div><div style="font-size:13px;color:var(--muted)">Arkadaşların bu kodla katılsın</div></div>
+    <div class="card">
+      <div class="row"><h2>Oyuncular</h2><span style="text-align:right;color:var(--muted);font-weight:800">${n} kişi</span></div>
+      <ul class="plist">${S.players.map(p=>`<li class="${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id===S.hostId?' <span class="tag">· anlatıcı</span>':''}</span>${isHost&&p.id!==me.id?`<button class="btn sm sec" data-kick="${p.id}">Çıkar</button>`:`<span class="dot ${p.connected?'':'off'}"></span>`}</li>`).join('')}</ul>
+      <p class="note">${n>=MIN_PLAYERS?`${n} kişi: <b>${rc.vampir} vampir</b>, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`:`Başlamak için en az ${MIN_PLAYERS} kişi gerekli (${MIN_PLAYERS-n} kişi daha).`}</p>
+    </div>
+    ${isHost?`
+    <div class="card">
+      <h2 style="font-size:16px">Süreler</h2>
+      <div class="row" style="margin-top:8px">
+        <div><label>Tartışma (sn)</label><input id="sDisc" type="number" inputmode="numeric" value="${S.settings.discussionSec}"></div>
+        <div><label>Oylama (sn)</label><input id="sVote" type="number" inputmode="numeric" value="${S.settings.voteSec}"></div>
+      </div>
+    </div>
+    <button class="btn" id="bStart" ${n<MIN_PLAYERS?'disabled':''}>Oyunu Başlat</button>`
+    :`<p class="note pulse">Anlatıcının oyunu başlatması bekleniyor…</p>`}
+    <button class="btn sec" id="bLeave">Odadan Ayrıl</button>`;
+}
+function viewRoles(mine){
+  if(!mine) return spectator();
+  const r=ROLES[mine.role];
+  const others = mine.role==='vampir' ? S.players.filter(p=>p.role==='vampir'&&p.id!==me.id) : [];
+  const acked=S.roleAck[me.id];
+  return `
+    <p class="sub">Rolünü kimseye gösterme!</p>
+    <div class="rolecard ${mine.role}"><div class="ic">${r.ic}</div><div class="rn">${r.name}</div><div class="rd">${r.desc}</div>
+    ${others.length?`<div style="margin-top:14px;color:var(--blood2);font-weight:800">Diğer vampirler: ${others.map(o=>esc(o.name)).join(', ')}</div>`:''}
+    </div>
+    ${acked?`<p class="note pulse">Diğerleri bekleniyor… (${Object.keys(S.roleAck).length}/${S.players.length})</p>`:`<button class="btn" id="bAck">Anladım, gizle</button>`}
+    ${isHost&&acked?hostBtn('Beklemeden geceye geç','sec'):''}`;
+}
+function pickList(cands, selected, opts={}){
+  return `<ul class="plist">${cands.map(p=>`<li class="pick ${selected===p.id?'sel':''} ${p.id===me.id?'me':''}" data-pick="${p.id}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id===me.id?' (sen)':''}</span>${opts.counts&&opts.counts[p.id]?`<span class="cnt">${opts.counts[p.id]}</span>`:''}${selected===p.id?'<span class="tag">✔</span>':''}</li>`).join('')}</ul>`;
+}
+function viewNight(mine){
+  const head=`<div class="banner night"><div class="big">🌙</div><div class="t">Gece ${S.day}</div><div class="d">Köy uykuya daldı…</div></div>`;
+  if(!mine||!mine.alive) return head+spectator();
+  const al=alive(S);
+  let body='';
+  if(mine.role==='vampir'){
+    const done=S.night.vampVotes[me.id];
+    const counts={}; Object.values(S.night.vampVotes).forEach(t=>counts[t]=(counts[t]||0)+1);
+    const vamps=al.filter(p=>p.role==='vampir');
+    body=`<div class="card"><h2>🧛 Kurbanını seç</h2>
+      ${vamps.length>1?`<p class="note" style="text-align:left">Vampirler: ${vamps.map(v=>esc(v.name)).join(', ')} — en çok oy alan ölür.</p>`:''}
+      ${pickList(al.filter(p=>p.role!=='vampir'), done||localSel, {counts})}
+      <button class="btn" id="bConfirm" ${(!localSel||done)?'disabled':''}>${done?'Seçimin kaydedildi':'Öldür'}</button></div>`;
+  } else if(mine.role==='doktor'){
+    const done=S.night.doctor;
+    body=`<div class="card"><h2>🩺 Kimi koruyacaksın?</h2>${pickList(al, done||localSel)}
+      <button class="btn green" id="bConfirm" ${(!localSel||done)?'disabled':''}>${done?'Koruma kaydedildi':'Koru'}</button></div>`;
+  } else if(mine.role==='kahin'){
+    const done=S.night.seer;
+    if(done){ const t=P(S,done); body=`<div class="card" style="text-align:center"><h2>🔮 Kehanet</h2><p style="font-size:18px;margin:14px 0"><b>${esc(t?.name)}</b> ${S.night.seerResult?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}</p><p class="note">Bu bilgiyi sadece sen biliyorsun.</p></div>`; }
+    else body=`<div class="card"><h2>🔮 Kimi araştıracaksın?</h2>${pickList(al.filter(p=>p.id!==me.id), localSel)}
+      <button class="btn blue" id="bConfirm" ${!localSel?'disabled':''}>Araştır</button></div>`;
+  } else {
+    body=`<div class="card" style="text-align:center"><div style="font-size:60px">😴</div><h2>Uyuyorsun</h2><p class="note">Gece bitene kadar bekle. Telefonuna bakıyormuş gibi yap, kimse rolünü anlamasın.</p></div>`;
+  }
+  if(isHost) body+=hostBtn('Geceyi zorla bitir','sec');
+  return head+body;
+}
+function viewDawn(mine){
+  const ln=S.lastNight||{};
+  const k = ln.killed?P(S,ln.killed):null;
+  return `<div class="banner day"><div class="big">🌅</div><div class="t">Sabah oldu</div>
+    <div style="margin-top:12px;font-size:20px;font-weight:800">${k?`<span class="bad">${esc(k.name)}</span> bu gece öldürüldü.`:(ln.saved?`<span class="ok">Doktor birini kurtardı!</span> Kimse ölmedi.`:`Kimse ölmedi.`)}</div>
+    ${k?`<div class="d">Rolü: ${ROLES[k.role].ic} ${ROLES[k.role].name}</div>`:''}</div>
+    ${!mine?.alive&&mine?`<p class="note">Öldün. Artık izleyicisin; oyunun sonuna kadar rolleri görebilirsin.</p>`:''}
+    ${seerNote(mine)}
+    ${hostBtn('Tartışmayı başlat')}
+    ${playersCard()}`;
+}
+function seerNote(mine){
+  const sr=S.lastNight?.seer; if(!mine||mine.role!=='kahin'||!sr) return '';
+  const t=P(S,sr.target); if(!t) return '';
+  return `<div class="card" style="text-align:center;border-color:var(--blue)"><b>🔮 Kehanetin:</b> <b>${esc(t.name)}</b> ${sr.isVamp?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}<div class="note">Sadece sen görüyorsun.</div></div>`;
+}
+function viewDiscussion(mine){
+  return `<div class="banner day"><div class="big">☀️</div><div class="t">Tartışma</div><div class="d">Kim vampir? Konuşun, şüphelenin.</div></div>
+    <div class="timer" id="timer">--</div>
+    ${seerNote(mine)}
+    ${hostBtn('Oylamaya geç')}
+    ${playersCard()}`;
+}
+function viewVote(mine){
+  const al=alive(S);
+  const myVote=S.votes[me.id];
+  const canVote = mine && mine.alive;
+  const voted=Object.keys(S.votes).length;
+  return `<div class="banner day"><div class="big">⚖️</div><div class="t">Oylama</div><div class="d">Kim asılsın? ${voted}/${al.length} oy verildi</div></div>
+    <div class="timer" id="timer">--</div>
+    ${canVote?`<div class="card">${pickList(al.filter(p=>p.id!==me.id), myVote!==undefined?myVote:localSel)}
+      <div class="row"><button class="btn sec" id="bSkip" ${myVote!==undefined?'disabled':''}>${myVote==='skip'?'Çekimser oy verdin':'Çekimser'}</button>
+      <button class="btn" id="bConfirm" ${(!localSel||myVote!==undefined)?'disabled':''}>${myVote&&myVote!=='skip'?'Oy verildi':'As'}</button></div></div>`
+      :spectator()}
+    ${isHost?hostBtn('Oylamayı bitir','sec'):''}`;
+}
+function viewVerdict(mine){
+  const lv=S.lastVote||{};
+  const list=alive(S).concat(S.players.filter(p=>!p.alive&&p.id===lv.hanged));
+  return `<div class="banner day"><div class="big">${lv.hanged?'🪢':'🤷'}</div><div class="t">Karar</div>
+    <div style="margin-top:12px;font-size:20px;font-weight:800">${lv.hanged?`<span class="bad">${esc(lv.name)}</span> asıldı.`:(lv.tie?'Oylar eşit, kimse asılmadı.':'Kimse asılmadı.')}</div>
+    ${lv.hanged?`<div class="d">Rolü: ${ROLES[lv.role].ic} ${ROLES[lv.role].name}</div>`:''}</div>
+    <div class="card"><h2 style="font-size:16px">Oylar</h2><ul class="plist">${S.players.filter(p=>lv.tally&&lv.tally[p.id]).sort((a,b)=>lv.tally[b.id]-lv.tally[a.id]).map(p=>`<li>${avatar(p)}<span class="nm">${esc(p.name)}</span><span class="cnt">${lv.tally[p.id]}</span></li>`).join('')}${lv.skip?`<li><span class="av">–</span><span class="nm">Çekimser</span><span class="cnt">${lv.skip}</span></li>`:''}</ul></div>
+    ${hostBtn('Geceye geç')}`;
+}
+function viewEnd(mine){
+  const w=S.winner;
+  return `<div class="banner ${w==='vampir'?'night':'day'}"><div class="big">${w==='vampir'?'🧛':'🏆'}</div><div class="t">${w==='vampir'?'Vampirler kazandı!':'Köylüler kazandı!'}</div>
+    <div class="d">${w==='vampir'?'Köy karanlığa gömüldü.':'Tüm vampirler yok edildi.'}</div></div>
+    <div class="card"><h2 style="font-size:16px">Roller</h2><ul class="plist">${S.players.map(p=>`<li class="${p.alive?'':'dead'}">${avatar(p)}<span class="nm">${esc(p.name)}</span><span class="tag">${ROLES[p.role].ic} ${ROLES[p.role].name}</span></li>`).join('')}</ul></div>
+    ${isHost?`<button class="btn" id="bRestart">Yeni Oyun (aynı oyuncular)</button>`:'<p class="note pulse">Anlatıcı yeni oyun başlatabilir.</p>'}
+    <button class="btn sec" id="bLeave">Odadan Ayrıl</button>`;
+}
+function spectator(){
+  const mine=P(S,me.id);
+  return `<div class="card" style="text-align:center"><div style="font-size:50px">👻</div><h2>${mine?'İzliyorsun':'Odaya sonradan geldin'}</h2><p class="note">Oyun devam ediyor. Sonuna kadar izleyebilirsin.</p></div>${playersCard(true)}`;
+}
+function playersCard(showRoles){
+  const mine=P(S,me.id); const reveal = showRoles || (mine && !mine.alive) || S.phase==='end';
+  return `<div class="card"><h2 style="font-size:16px">Köy</h2><ul class="plist">${S.players.map(p=>`<li class="${p.alive?'':'dead'} ${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)}</span>${(!p.alive||reveal)&&p.role?`<span class="tag">${ROLES[p.role].ic} ${ROLES[p.role].name}</span>`:''}<span class="dot ${p.connected?'':'off'}"></span></li>`).join('')}</ul>
+  ${S.log.length?`<div class="log" style="margin-top:10px">${S.log.slice(0,6).map(esc).join('<br>')}</div>`:''}</div>`;
+}
+
+function bindGame(mine){
+  const q=(s)=>$(s);
+  const saveSettings=()=>send({type:'settings',settings:{discussionSec:Math.max(15,+q('#sDisc').value||120), voteSec:Math.max(15,+q('#sVote').value||60)}});
+  q('#sDisc')&&(q('#sDisc').onchange=saveSettings); q('#sVote')&&(q('#sVote').onchange=saveSettings);
+  q('#bStart')&&(q('#bStart').onclick=()=>{ saveSettings(); send({type:'start'}); });
+  q('#bLeave')&&(q('#bLeave').onclick=()=>{ send({type:'leave'}); if(channel){supabase.removeChannel(channel);channel=null;} S=null; isHost=false; screen='home'; render(); });
+  document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>send({type:'kick',target:b.dataset.kick}));
+  q('#bAck')&&(q('#bAck').onclick=()=>send({type:'ackRole'}));
+  q('#bNext')&&(q('#bNext').onclick=()=>{ localSel=null; send({type:'next'}); });
+  q('#bRestart')&&(q('#bRestart').onclick=()=>{ localSel=null; send({type:'restart'}); });
+  document.querySelectorAll('[data-pick]').forEach(li=>li.onclick=()=>{ localSel=li.dataset.pick; render(); });
+  q('#bConfirm')&&(q('#bConfirm').onclick=()=>{ if(!localSel) return; const t=localSel; localSel=null; send({type: S.phase==='vote'?'vote':'night', target:t}); });
+  q('#bSkip')&&(q('#bSkip').onclick=()=>{ localSel=null; send({type:'vote',target:'skip'}); });
+}
+
+/* ================== ANLATICI METİNLERİ ================== */
+function narrate(mine){
+  const key=S.code+':'+S.phase+':'+S.day+':'+(S.phase==='end'?S.winner:'');
+  if(key===lastPhaseSpoken) return; lastPhaseSpoken=key;
+  localSel=null;
+  let t='';
+  switch(S.phase){
+    case 'roles': t='Roller dağıtıldı. Herkes telefonundaki rolüne gizlice baksın ve kimseye göstermesin.'; break;
+    case 'night': t= S.day===1 ? 'Gece oluyor. Köy uykuya dalıyor. Vampirler, uyanın ve kurbanınızı seçin. Doktor, koruyacağın kişiyi seç. Kâhin, araştıracağın kişiyi seç.' : `Gece ${S.day}. Köy yeniden uykuya dalıyor. Vampirler, doktor ve kâhin, telefonlarınızdan seçiminizi yapın.`; break;
+    case 'dawn': { const ln=S.lastNight||{}; const k=ln.killed?P(S,ln.killed):null; t= k ? `Sabah oldu. Köylüler uyanıyor. Ne yazık ki ${k.name} bu gece öldürüldü. ${k.name}, ${ROLES[k.role].name} idi.` : (ln.saved?'Sabah oldu. Vampirler saldırdı ama doktor zamanında yetişti. Bu gece kimse ölmedi.':'Sabah oldu. Bu gece kimse ölmedi.'); break; }
+    case 'discussion': t=`Tartışma başlıyor. ${S.settings.discussionSec} saniyeniz var. Kim vampir? Konuşun.`; break;
+    case 'vote': t='Oylama zamanı. Herkes telefonundan asılmasını istediği kişiyi seçsin.'; break;
+    case 'verdict': { const lv=S.lastVote||{}; t= lv.hanged ? `Köy kararını verdi. ${lv.name} asıldı. ${lv.name}, ${ROLES[lv.role].name} idi.` : (lv.tie?'Oylar eşit çıktı. Bugün kimse asılmadı.':'Köy kimseyi asmamaya karar verdi.'); break; }
+    case 'end': t= S.winner==='vampir' ? 'Oyun bitti. Vampirler köyü ele geçirdi. Vampirler kazandı!' : 'Oyun bitti. Son vampir de yok edildi. Köylüler kazandı!'; break;
+  }
+  if(t) voice.speak(t);
+}
+
+/* ================== SAYAÇ ================== */
+function runTimer(){
+  clearInterval(timerTick);
+  const el=$('#timer'); if(!el||!S.timerEnd) return;
+  const upd=()=>{ const s=Math.max(0,Math.ceil((S.timerEnd-Date.now())/1000)); el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; el.classList.toggle('warn',s<=10); if(s<=0) clearInterval(timerTick); };
+  upd(); timerTick=setInterval(upd,500);
+}
+
+/* ================== PWA ================== */
+if('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.hostname)){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+/* iOS Safari: sesler geç yüklenir */
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+
+/* ================== BAŞLAT ================== */
+window.addEventListener('beforeunload',()=>{ if(channel&&!isHost) send({type:'leave'}); });
+render();
+</script>
+</body>
+</html>

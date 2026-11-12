@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vampir Köylü</string>
+    <string name="title_activity_main">Vampir Köylü</string>
+    <string name="package_name">com.vampirkoylu.app</string>
+    <string name="custom_url_scheme">com.vampirkoylu.app</string>
+</resources>
