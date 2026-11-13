@@ -1,0 +1,5 @@
+Vampir Köylü — 3B varlıklar ve sesler
+Karakterler/animasyonlar: Quaternius (CC0) https://quaternius.com
+Dokular/objeler: Poly Haven (CC0) https://polyhaven.com
+Seslendirme: Piper TTS tr_TR-dfki-medium (CC BY-NC-SA 4.0) — yalnızca ticari olmayan kullanım
+Three.js (MIT)

@@ -6,6 +6,8 @@ import { createVillage } from './village.js';
 import { createScene } from './scene.js';
 import * as LN from './lines.js';
 import SFX from './sfx.js';
+import { stageWanted, stage3d, hideStage, loadingHTML, setRenderPref } from './stage-prefs.js';
+import { createSpeaker, prefetchLines, loadVoices } from './voice.js';
 
 export const unlockAudio=()=>SFX.unlock();
 export const ROLE_INFO = {
@@ -21,7 +23,7 @@ const P=(S,id)=>S.players.find(p=>p.id===id);
 const alive=(S)=>S.players.filter(p=>p.alive);
 const shuffle=(a)=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 const pickR=(a)=>a[Math.floor(Math.random()*a.length)];
-const roleSuffix=(r)=>({koylu:'müş',doktor:'muş',kahin:'miş',vampir:'miş'})[r]||'miş';
+const roleSuffix=(r)=>({koylu:'ymüş',doktor:'muş',kahin:'miş',vampir:'miş'})[r]||'miş';
 function roleCounts(n){ const v=n>=12?3:n>=8?2:1; return { vampir:v, doktor:1, kahin:1, koylu:n-v-2 }; }
 
 /* =================== HOST =================== */
@@ -31,22 +33,32 @@ export function newGameFields(S){
 }
 function startAct(S){ S.act=(S.act||0)+1; S.evs=[]; }
 function ev(S,e){ e.day=S.day; S.evs.push(e); }
-function say(S,p,text,kind='talk'){ ev(S,{ t:'say', who:p?p.id:null, name:p?p.name:'Anlatıcı', title:p?.title||'', avatar:p?p.avatar:'🌙', pitch:p?.pitch||1, text, kind }); }
-function narr(S,text){ ev(S,{ t:'narr', who:null, name:'Anlatıcı', avatar:'🌙', text, kind:'narr' }); }
+function say(S,p,text,kind='talk'){ ev(S,{ t:'say', who:p?p.id:null, name:p?p.name:'Anlatıcı', title:p?.title||'', avatar:p?p.avatar:'🌙', pitch:p?.pitch||1, arch:p?.arch||null, text, voice:LN.spokenFor(text), kind }); }
+function narr(S,text){ ev(S,{ t:'narr', who:null, name:'Anlatıcı', avatar:'🌙', text, voice:LN.spokenFor(text), kind:'narr' }); }
+const RS=LN.regSpoken;
 function sfx(S,name){ ev(S,{t:'sfx',name}); }
 function vstate(S){ const s={}; const hanged=S.players.filter(p=>p.fate==='hanged').sort((a,b)=>a.hangOrder-b.hangOrder).slice(-3);
   for(const p of S.players){ if(p.fate==='impaled') s[p.id]={impaled:true,stakeK:p.stakeK}; else if(p.fate==='hanged'&&hanged.includes(p)) s[p.id]={hanged:true,hangK:hanged.indexOf(p)}; else if(!p.alive) s[p.id]={dead:true}; }
   S.vstate=s; }
 const speaker=(S,ex=[])=>{ const c=alive(S).filter(p=>!ex.includes(p)); return c.length?pickR(c):null; };
 const muhtar=(S)=>alive(S).find(p=>p.title==='Muhtar')||speaker(S);
-const line=(arr,m)=>LN.fillT(LN.pick(arr),m||{});
+const NEG=new Set([LN.ACCUSE, LN.ACCUSE_HERD, LN.SEER_VAMP, LN.COUNTER_SEER, LN.RESPONSE_DOUBT]);
+const line=(arr,m)=>LN.fillT(LN.pick(arr),m||{},NEG.has(arr));
+/* kadın karakter tipleri (odalı mod, karışık kadro) */
+const FEMALE_ARCH=[ { key:'kadin1', title:'Teyze', pitch:1.4 }, { key:'kadin2', title:'Gelin', pitch:1.35 }, { key:'kadin3', title:'Nine', pitch:1.5 } ];
+const M_AV=['👨','👴','🧔','👨‍🦱','👨‍🦳','🧑','👨‍🌾','👲','🧓','👱‍♂️','👨‍🦰','🤵','🧑‍🌾','👷‍♂️','🧑‍🦲','🤠'];
+const F_AV=['👩','👵','👱‍♀️','👩‍🦰','👩‍🦳','🧕','👩‍🌾','👩‍🦱','👩‍🍳'];
 
 export function hostStart(S){
   const n=S.players.length; if(n<MIN_PLAYERS) return false;
   const rc=roleCounts(n); const pool=[]; for(const [r,c] of Object.entries(rc)) for(let i=0;i<c;i++) pool.push(r);
-  const sh=shuffle(pool); const avs=shuffle(AVATARS); const arch=[LN.ARCHETYPES[0], ...shuffle(LN.ARCHETYPES.slice(1))];
-  const order=shuffle(S.players.map((_,i)=>i));
-  S.players.forEach((p,i)=>{ p.role=sh[i]; p.alive=true; p.fate=null; p.hangOrder=null; p.stakeK=null; p.avatar=avs[i%avs.length]; const a=arch[order[i]%arch.length]; p.title=a.title; p.pitch=a.pitch; p.claimed=null; });
+  const sh=shuffle(pool); const mav=shuffle(M_AV), fav=shuffle(F_AV); const arch=[LN.ARCHETYPES[0], ...shuffle(LN.ARCHETYPES.slice(1))]; const farch=shuffle(FEMALE_ARCH);
+  const allMale=(S.settings?.cast||'mixed')==='male';
+  let mi=0, fi=0; const order=shuffle(S.players.map((_,i)=>i));
+  for(const i of order){ const p=S.players[i]; p.role=sh[i]; p.alive=true; p.fate=null; p.hangOrder=null; p.stakeK=null; p.claimed=null;
+    const g=allMale?'m':(p.gender==='f'?'f':'m'); p.sex=g;
+    if(g==='f'){ const a=farch[fi%farch.length]; p.arch=a.key; p.title=a.title; p.pitch=a.pitch; p.avatar=fav[fi%fav.length]; fi++; }
+    else { const a=arch[mi%arch.length]; p.arch=a.key; p.title=a.title; p.pitch=a.pitch; p.avatar=mav[mi%mav.length]; mi++; } }
   const gid=(S.gameId||0)+1; newGameFields(S); S.gameId=gid;
   S.phase='roles'; startAct(S);
   return true;
@@ -98,6 +110,7 @@ function toDiscussion(S,ctx){
 function toSelect(S,ctx){
   S.phase='select'; S.sel={}; startAct(S);
   const m=muhtar(S); const t=line(LN.SELECT_INTRO); if(m) say(S,m,t); else narr(S,t);
+  ev(S,{t:'disperse'});
   S.timerEnd=Date.now()+(S.settings.voteSec||SEL_SEC)*1000;
   ctx.armTimer(S.timerEnd, ()=>{ if(S.phase==='select'){ resolveSelect(S,ctx); ctx.broadcast(); } });
 }
@@ -111,16 +124,17 @@ function resolveSelect(S,ctx){
   startAct(S);
   ev(S,{t:'badges',counts:t});
   const voters=shuffle(Object.keys(S.sel).filter(id=>S.sel[id]===acc.id).map(id=>P(S,id))).slice(0,2);
-  for(const v of voters) say(S,v,`Ben ${LN.suf(acc.name,'i')} seçtim!`);
-  narr(S, max ? `En çok seçilen: ${acc.name} (${max} oy). Evinden alınıp meydana getiriliyor!` : `Kimse seçim yapmadı… kura ${acc.name} çıktı! Meydana!`);
+  for(const v of voters) say(S,v,RS(`Ben ${LN.suf(acc.name,'i')} seçtim!`,'Ben bu herifi seçtim!'));
+  narr(S, max ? RS(`En çok seçilen: ${acc.name} (${max} oy). Evinden alınıp meydana getiriliyor!`,'Köy kararını verdi! Evinden alınıp meydana getiriliyor!') : RS(`Kimse seçim yapmadı… kura ${acc.name} çıktı! Meydana!`,'Kimse seçim yapmadı… Kura çekildi! Meydana!'));
   const crowd=shuffle(alive(S).filter(p=>p!==acc)).slice(0,4).map(p=>p.id);
   ev(S,{t:'drag',target:acc.id,crowd});
   const c=P(S,crowd[0]); if(c) say(S,c,LN.pick(LN.DRAG.crowd));
   say(S,acc,LN.pick(LN.DRAG.accused));
+  ev(S,{t:'escort',who:acc.id,crowd});
   ev(S,{t:'badges',counts:{}});
   S.accused=acc.id; S.selTally=t; S.defense=null;
   S.phase='defense';
-  narr(S,`${acc.name}, söz senin. Kendini savun!`);
+  narr(S,RS(`${acc.name}, söz senin. Kendini savun!`,'Söz sende. Kendini savun!'));
   S.timerEnd=Date.now()+DEF_SEC*1000;
   ctx.armTimer(S.timerEnd, ()=>{ if(S.phase==='defense'){ doDefense(S,{key:'silent'},ctx); ctx.broadcast(); } });
 }
@@ -130,9 +144,9 @@ function doDefense(S,a,ctx){
   const acc=P(S,S.accused); startAct(S);
   const others=alive(S).filter(p=>p!==acc);
   switch(a.key){
-    case 'innocent': { const o=P(S,a.target)||pickR(others); say(S,acc,`Ben köylüyüm la! Dün gece evdeydim, ${o.name} şahidim.`); break; }
-    case 'blame': { const t=P(S,a.target)||pickR(others); say(S,acc,`Beni bırakın, asıl vampir ${t.name}! Gözlerine bakın gözlerine!`); break; }
-    case 'role': { const r=ROLE_INFO[a.role]?a.role:'koylu'; acc.claimed=r; say(S,acc, r==='koylu'?'Ben düz köylüyüm la, bi suçum yok! Yapmayın!':`Dinleyin beni: ben ${ROLE_INFO[r].name.toLowerCase()}ım! Beni asarsanız köy biter.`); break; }
+    case 'innocent': { const o=P(S,a.target)||pickR(others); say(S,acc,RS(`Ben köylüyüm la! Dün gece evdeydim, ${o.name} şahidim.`,'Ben köylüyüm la! Dün gece evdeydim, şu adam şahidim.')); break; }
+    case 'blame': { const t=P(S,a.target)||pickR(others); say(S,acc,RS(`Beni bırakın, asıl vampir ${t.name}! Gözlerine bakın gözlerine!`,'Beni bırakın, asıl vampir bu herif! Gözlerine bakın gözlerine!')); break; }
+    case 'role': { const r=ROLE_INFO[a.role]?a.role:'koylu'; acc.claimed=r; say(S,acc, r==='koylu'?'Ben düz köylüyüm la, bi suçum yok! Yapmayın!':`Dinleyin beni: ben ${ROLE_INFO[r].name.toLowerCase()}${r==='doktor'?'um':'im'}! Beni asarsanız köy biter.`); break; }
     default: say(S,acc,'…','quiet');
   }
   S.defense=a.key||'silent';
@@ -143,7 +157,7 @@ function doDefense(S,a,ctx){
 function toFinal(S,ctx,keepAct){
   S.phase='final'; S.fin={}; S.pleaded=false; if(!keepAct) startAct(S);
   const acc=P(S,S.accused);
-  narr(S,`Son karar: ${acc.name} asılsın mı? Herkes AS ya da BIRAK desin ve oyunu kitlesin!`);
+  narr(S,RS(`Son karar: ${acc.name} asılsın mı? Herkes AS ya da BIRAK desin ve oyunu kitlesin!`,'Son karar! Asılsın mı, bırakılsın mı? Herkes oyunu versin ve kitlesin!'));
   S.timerEnd=Date.now()+(S.settings.voteSec||FIN_SEC)*1000;
   ctx.armTimer(S.timerEnd, ()=>{ if(S.phase==='final'){ resolveFinal(S,ctx); ctx.broadcast(); } });
   if(!eligible(S).length) resolveFinal(S,ctx);
@@ -162,7 +176,7 @@ function resolveFinal(S,ctx){
   const acc=P(S,S.accused);
   const hang=Object.values(S.fin).filter(v=>v==='hang').length, rel=Object.values(S.fin).filter(v=>v==='release').length;
   startAct(S);
-  narr(S,`Sonuç: ${hang} AS, ${rel} BIRAK.`);
+  narr(S,RS(`Sonuç: ${hang} AS, ${rel} BIRAK.`, hang>rel?'Oylar sayıldı. Köy AS dedi!':'Oylar sayıldı. Köy BIRAK dedi!'));
   if(hang>rel) execute(S,acc,hang,rel);
   else { ev(S,{t:'release',who:acc.id}); say(S,muhtar(S)||acc,LN.pick(LN.RELEASE)); S.lastVote={hanged:null,name:acc.name,released:true,hang,rel}; S.phase='verdict'; }
   vstate(S);
@@ -191,7 +205,7 @@ function execute(S,acc,hang,rel){
     ev(S,{t:'hang',who:acc.id,vamp:false});
     acc.alive=false; acc.fate='hanged'; acc.hangOrder=S.hangCount++;
     const s1=speaker(S,[acc]); if(s1) say(S,s1,LN.pick(LN.HANG_VILLAGER));
-    narr(S,`${acc.name} ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}.`);
+    narr(S,RS(`${acc.name} ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}.`,`Meğer ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}!`));
   }
   S.lastVote={hanged:acc.id,name:acc.name,role:acc.role,hang,rel};
   S.phase='verdict';
@@ -200,7 +214,7 @@ function execute(S,acc,hang,rel){
 function toNight(S,ctx){
   S.phase='night'; startAct(S); S.night={vampVotes:{},doctor:null,seer:null,seerResult:null};
   ev(S,{t:'home'}); ev(S,{t:'night',on:true}); sfx(S,'howl');
-  narr(S,line(LN.NIGHT_INTRO)+' Vampirler, doktor ve kâhin: telefonlarınızdan seçin.');
+  { const ni=line(LN.NIGHT_INTRO); narr(S,RS(ni+' Vampirler, doktor ve kâhin: telefonlarınızdan seçin.',ni)); }
   S.timerEnd=null; checkNightDone(S,ctx);
 }
 function nightAction(S,p,target,ctx){
@@ -224,7 +238,7 @@ function resolveNight(S,ctx){
   S.day++; startAct(S);
   ev(S,{t:'night',on:false}); sfx(S,'bell');
   const m=muhtar(S);
-  if(killed){ ev(S,{t:'dead',who:killed.id}); const t=line(LN.DAWN_DEAD,{v:killed.name}); if(m) say(S,m,t); else narr(S,t); narr(S,`${killed.name} ${ROLE_INFO[killed.role].name.toLowerCase()}${roleSuffix(killed.role)}.`); }
+  if(killed){ ev(S,{t:'dead',who:killed.id}); const t=line(LN.DAWN_DEAD,{v:killed.name}); if(m) say(S,m,t); else narr(S,t); narr(S,RS(`${killed.name} ${ROLE_INFO[killed.role].name.toLowerCase()}${roleSuffix(killed.role)}.`,`Meğer ${ROLE_INFO[killed.role].name.toLowerCase()}${roleSuffix(killed.role)}!`)); }
   else { const t=line(saved?LN.DAWN_SAVED:LN.DAWN_NONE); if(m) say(S,m,t); else narr(S,t); }
   S.phase='dawn'; vstate(S);
   checkWin(S);
@@ -234,7 +248,7 @@ function checkWin(S){
   const al=alive(S); const v=al.filter(p=>p.role==='vampir').length; const o=al.length-v;
   if(v===0) S.winner='koylu'; else if(v>=o) S.winner='vampir'; else return false;
   S.phase='end'; S.timerEnd=null;
-  ev(S,{t:'night',on:S.winner==='vampir'}); ev(S,{t:'gather'});
+  ev(S,{t:'night',on:S.winner==='vampir',end:true}); ev(S,{t:'gather',end:true});
   if(S.winner==='vampir'){
     const vamps=al.filter(p=>p.role==='vampir'); const vills=al.filter(p=>p.role!=='vampir');
     vamps.forEach(p=>ev(S,{t:'fangs',who:p.id}));
@@ -249,34 +263,58 @@ function checkWin(S){
 }
 
 /* =================== İSTEMCİ ARAYÜZÜ =================== */
+const MODE3D={ roles:'roles', opening:'talk', discussion:'talk', select:'select', defense:'defense', final:'final', verdict:'verdict', night:'night', dawn:'dawn', end:'end' };
 export function createMultiUI({ app, esc, voice, send, toast, isHost, meId, onLeave }){
-  let V=null, SC=null, gameId=null, act=-1, idx=0, sel=null, finChoice=null, defMode=null, roleClaim=null, S=null, lines=[], timerTick=null, lastPhase='';
+  let V=null, SC=null, D=null, is3d=false, loading3d=false, gameId=null, act=-1, idx=0, sel=null, finChoice=null, defMode=null, roleClaim=null, S=null, lines=[], timerTick=null, lastPhase='';
   const mine=()=>S&&P(S,meId());
+  const speaker=createSpeaker(voice); loadVoices();
+  const disposeD=()=>{ if(D){ try{ D.dispose(); }catch(e){} D=null; } };
 
   function build(){
+    disposeD(); SC=null; V=null; act=-1; idx=0; lines=[];
+    is3d=stageWanted();
+    if(is3d){
+      app.innerHTML=`<div class="game g3d fade"><div class="topbar" id="mTop"></div><div class="spacer"></div><div class="subs" id="mLines"></div><div id="mPanel"></div>${loadingHTML()}</div>`;
+      const gid=gameId; loading3d=true;
+      (async()=>{ try{
+        const S3=await stage3d(); S3.showStage(true); const bar=app.querySelector('#gLoadBar');
+        await S3.ensureStage((p)=>{ if(bar) bar.style.width=Math.round(p*100)+'%'; });
+        if(gid!==gameId || !S) return;
+        D=await S3.newDirector(S.players.map(p=>({ ...p, human:p.id===meId(), name:p.name })),{ voice, onLine:addLine, onPick:onHouse, speak:speaker, prefetch:prefetchLines, meId:meId() });
+        SC=D; V={ highlight:(id,on)=>D.highlight(id,on) }; loading3d=false;
+        const ld=app.querySelector('#gLoad'); if(ld){ ld.classList.add('out'); setTimeout(()=>ld.remove(),700); }
+        render(S);
+      }catch(err){ console.error('3B açılamadı',err); loading3d=false; setRenderPref('2d'); hideStage(); toast('3B grafik açılamadı, basit görünüme geçildi'); gameId=null; render(S); } })();
+      return;
+    }
+    hideStage();
     app.innerHTML=`<div class="game fade">
       <div class="topbar" id="mTop"></div>
       <div class="vwrap" id="mVillage"></div>
       <div class="lines" id="mLines"></div>
       <div id="mPanel"></div></div>`;
     V=createVillage(app.querySelector('#mVillage'),{ players:S.players.map(p=>({id:p.id,name:p.id===meId()?p.name+' (sen)':p.name,avatar:p.avatar})), onHouse });
-    SC=createScene({ village:V, voice, onLine:addLine });
-    V.setNight(false); act=-1; idx=0; lines=[];
+    SC=createScene({ village:V, voice, onLine:addLine, speak:speaker });
+    V.setNight(false);
   }
+  function sync3d(){ if(!is3d||!D||!SC||SC.busy||!S) return; D.setMode(MODE3D[S.phase]||'talk'); D.setCandidates(pickCands()); }
   function addLine(e){ lines.push(e); if(lines.length>3) lines.shift(); const el=app.querySelector('#mLines'); if(!el) return;
+    if(is3d){ const l=e; const pv=lines.length>1?lines[lines.length-2]:null; const cut=(t,n)=>t.length>n?t.slice(0,n-2)+'…':t;
+      el.innerHTML=`${pv?`<div class="prev">${esc(pv.t==='narr'?'Anlatıcı':pv.name)}: ${esc(cut(pv.text,72))}</div>`:''}<div class="who">${l.t==='narr'?'🌙 Anlatıcı':`${esc(l.avatar)} ${esc(l.name)}${l.title?` <span class="tt">· ${esc(l.title)}</span>`:''}`}</div><div class="tx ${l.t==='narr'?'narr':''} ${l.kind==='scream'?'scream':''}">${esc(l.text)}</div>`; return; }
     el.innerHTML=lines.map((l,i)=>`<div class="ln ${l.t==='narr'?'narr':''} ${l.kind==='scream'?'scream':''} ${i===lines.length-1?'last':''}"><b>${l.t==='narr'?'🌙':esc(l.avatar)} ${esc(l.name)}${l.title?` <span class="tt">${esc(l.title)}</span>`:''}:</b> ${esc(l.text)}</div>`).join(''); }
 
   function render(state){
     S=state; if(!S) return;
-    if(!V || gameId!==S.gameId || !app.querySelector('#mVillage')){ gameId=S.gameId; build(); }
+    if(gameId!==S.gameId || !app.querySelector('#mTop')){ gameId=S.gameId; lastPhase=''; build(); }
+    if(!SC){ drawTop(); return; }
     if(S.phase!==lastPhase){ lastPhase=S.phase; sel=null; finChoice=null; defMode=null; roleClaim=null; V.highlight(null); }
     // sahne olayları
     let fresh=[];
     if(S.act!==act){ act=S.act; idx=0; }
     if(S.evs && S.evs.length>idx){ fresh=S.evs.slice(idx); idx=S.evs.length; }
-    if(fresh.length) SC.play(fresh, ()=>{ SC.sync(S.vstate||{}); drawPanel(); });
+    if(fresh.length){ if(is3d&&D) D.setCandidates(null); SC.play(fresh, ()=>{ SC.sync(S.vstate||{}); drawPanel(); sync3d(); }); }
     else if(!SC.busy) SC.sync(S.vstate||{});
-    drawTop(); drawPanel();
+    drawTop(); drawPanel(); sync3d();
   }
   function drawTop(){
     const t=app.querySelector('#mTop'); if(!t) return; const m=mine();
@@ -297,15 +335,15 @@ export function createMultiUI({ app, esc, voice, send, toast, isHost, meId, onLe
     if(m.role==='kahin'&&!S.night.seer) return alive(S).filter(p=>p.id!==m.id).map(p=>p.id);
     return null;
   }
-  function onHouse(id){ const c=pickCands(); if(!c||!c.includes(id)) return; sel=id; V.highlight(id,true); drawPanel(); }
+  function onHouse(id){ const c=pickCands(); if(!c||!c.includes(id)) return; sel=id; V.highlight(id,true); drawPanel(); if(is3d&&D) D.setCandidates(c); }
   const chips=(ids,counts)=>`<div class="chips">${ids.map(id=>{ const p=P(S,id); return `<button class="chip ${sel===id?'on':''}" data-chip="${id}">${p.avatar} ${esc(p.id===meId()?p.name+' (sen)':p.name)}${counts&&counts[id]?` <small class="bad">${counts[id]}</small>`:''}</button>`; }).join('')}</div>`;
   const hostBtn=(label,cls='gold')=>isHost()?`<button class="btn ${cls}" id="mNext">${label}</button>`:'';
   const waitNote=(t='Anlatıcının devam etmesi bekleniyor…')=>isHost()?'':`<p class="note pulse">${t}</p>`;
   const timer=()=>S.timerEnd?`<div class="timer" id="mTimer">--</div>`:'';
 
   function drawPanel(){
-    const el=app.querySelector('#mPanel'); if(!el||!S) return;
-    if(SC.busy){ el.innerHTML=`<div class="card panelc"><button class="btn sec" id="mSkip">⏩ Geç</button></div>`; el.querySelector('#mSkip').onclick=()=>SC.skip(); return; }
+    const el=app.querySelector('#mPanel'); if(!el||!S||!SC) return;
+    if(SC.busy){ el.innerHTML=is3d?`<div class="skipf"><button id="mSkip">⏩ Geç</button></div>`:`<div class="card panelc"><button class="btn sec" id="mSkip">⏩ Geç</button></div>`; el.querySelector('#mSkip').onclick=()=>SC.skip(); return; }
     const m=mine(); const dead=m&&!m.alive; let html='';
     const deadNote=dead&&S.phase!=='end'?`<div class="note">👻 Öldün; izliyorsun. Rolleri görebilirsin.</div>`:'';
     switch(S.phase){
@@ -358,7 +396,8 @@ export function createMultiUI({ app, esc, voice, send, toast, isHost, meId, onLe
           ${isHost()?`<button class="btn" id="mRestart">Yeni Oyun (aynı oyuncular)</button>`:'<p class="note pulse">Anlatıcı yeni oyun başlatabilir.</p>'}<button class="btn sec" id="mLeave">Odadan Ayrıl</button>`; break; }
     }
     if(dead && S.phase!=='end') html+=rolesCard();
-    el.innerHTML=html; bind(el); runTimer();
+    if(is3d && (S.phase==='end' || dead)) html=`<div class="sheet-scroll">${html}</div>`;
+    el.innerHTML=html; bind(el); runTimer(); if(is3d) sync3d();
   }
   function seerNote(m){ const sr=S.lastNight?.seer; if(!m||m.role!=='kahin'||!sr||!m.alive) return ''; const t=P(S,sr.target); if(!t) return ''; return `<div class="card panelc" style="text-align:center;border-color:var(--blue)">🔮 <b>${esc(t.name)}</b> ${sr.isVamp?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}<div class="note">Sadece sen biliyorsun.</div></div>`; }
   function spect(){ return `<div class="card panelc" style="text-align:center"><div style="font-size:44px">👻</div><b>Oyun devam ediyor</b><div class="note">Bu tura sonradan geldin, izliyorsun.</div></div>`; }
@@ -384,5 +423,5 @@ export function createMultiUI({ app, esc, voice, send, toast, isHost, meId, onLe
     const upd=()=>{ const s=Math.max(0,Math.ceil((S.timerEnd-Date.now())/1000)); el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; el.classList.toggle('warn',s<=10); if(s<=0) clearInterval(timerTick); };
     upd(); timerTick=setInterval(upd,500);
   }
-  return { render, reset(){ V=null; gameId=null; lastPhase=''; } };
+  return { render, reset(){ disposeD(); hideStage(); V=null; SC=null; gameId=null; lastPhase=''; } };
 }

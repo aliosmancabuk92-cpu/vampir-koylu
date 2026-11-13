@@ -7,3 +7,7 @@ test/shots/
 ios/App/Pods/
 ios/App/App/public/
 android/app/src/main/assets/public/
+test/w3d/bundle.js
+test/w3d/game-bundle.js
+proto/
+artifact/

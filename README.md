@@ -7,6 +7,20 @@ Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir
 - **Tek Oyna**: botlara karşı, 4 bölüm / 24 seviye, yıldız + XP + rütbe, serbest oyun, istatistik. İnternet gerekmez; ilerleme telefonda saklanır.
 - **Arkadaşlarla Oyna**: Supabase Realtime ile odalı çok oyunculu.
 
+## 3B sürüm (sinematik köy)
+- `src/world/world.js` — three.js köy dünyası: gökyüzü ve ışık evreleri (gündüz/akşam/gece/şafak/kıyamet/bayram), Anadolu evleri, meydan, çeşme, dar ağacı, kazıklar, meşaleler, ağaçlar, parçacıklar, kamera yönetmeni, etiketler, kalite ayarı
+- `src/world/houses.js` — prosedürel Anadolu evleri (taş damlı, cumbalı konak, kerpiç, iki katlı, ahırlı…)
+- `src/world/people.js` — gerçek oranlı köylüler (gövde + köylü kıyafeti + bıyık/kasket/takke/kalpak), yürüme, baş çevirme, asılma/kazık pozları
+- `src/world/director.js` — oyun olaylarını 3B sahnelere çeviren yönetmen (toplanma, eve dağılma, evden sürükleme, savunma çekimleri, asma, tekme, kazık, gece baskını, köy hafızası)
+- `src/stage3d.js` / `src/stage-prefs.js` — 3B katman (tembel yüklenir) ve tercihler (3B/2B, kalite)
+- `src/voice.js` — önceden kaydedilmiş replikleri karakter ses rengiyle çalar; kayıt yoksa cihaz sesine düşer
+- `tools/voice-collect.mjs` → `tools/voice-gen.py` → `tools/voice-female.sh` — tüm replikleri topla, Piper ile seslendir, kadın sesini türet
+
+Sesleri yeniden üretmek (replik eklenince):
+```bash
+node tools/voice-collect.mjs && python3 tools/voice-gen.py && tools/voice-female.sh
+```
+
 ## Klasörler
 - `index.html`  — giriş, çok oyunculu mod, ses
 - `src/solo-engine.js` — tek oyunculu motor (bot zekâsı, şüphe modeli, seviyeler)
@@ -24,9 +38,7 @@ Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir
 ```bash
 npm install
 npx esbuild src/sb-entry.js --bundle --format=esm --minify --outfile=www/supabase.js
-npx esbuild src/solo-ui.js --bundle --format=esm --minify --outfile=www/solo.js
-npx esbuild src/multi.js --bundle --format=esm --minify --outfile=www/multi.js
-cp index.html www/index.html
+./build.sh                                   # solo.js + multi.js + chunks/ (three.js ayrı parçada)
 npx cap sync android
 cd android && ./gradlew assembleDebug      # çıktı: android/app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -42,3 +54,8 @@ node test/mp-e2e.mjs        # odalı mod, 4 oyuncu: bırakma, gece, kazık, yeni
 
 ## Roller
 Köylü, Vampir (4-7 kişi: 1, 8-11: 2, 12+: 3), Doktor, Kâhin. En az 4 oyuncu.
+
+## Lisanslar (3B ve ses)
+- Karakterler ve animasyonlar: Quaternius (CC0) — Universal Animation Library, Superhero gövdeleri, köylü kıyafetleri
+- Dokular ve sahne objeleri: Poly Haven (CC0)
+- Seslendirme: Piper TTS, `tr_TR-dfki-medium` sesi (**CC BY-NC-SA — ticari değil**). Mağazaya çıkmadan önce ticari lisanslı bir sesle yeniden üretilmeli.

@@ -10,8 +10,9 @@ export const ROLE_INFO = {
   koylu:  { name:'Köylü',  ic:'🧑‍🌾' },
 };
 
-const BOT_NAMES = ['Ayşe','Mehmet','Zeynep','Mustafa','Elif','Hasan','Fatma','Kerem','Derya','Burak','Selin','Emre','Hatice','Yusuf','Melis','Can','Nur','Oğuz','İrem','Tolga','Leyla','Baran','Ece','Umut'];
-const AVATARS = ['👩','👨','👵','👴','🧔','👱‍♀️','👩‍🦰','👨‍🦱','👩‍🦳','🧑','👨‍🌾','👩‍🍳','🧕','👲','👩‍🦱','👨‍🦳','🧓','👸','🤴','🧙‍♀️','🧝','🧑‍🎤','👩‍⚕️','👨‍🏫'];
+const NEG_POOLS = new Set([LN.ACCUSE, LN.ACCUSE_HERD, LN.SEER_VAMP, LN.COUNTER_SEER, LN.RESPONSE_DOUBT]);
+const BOT_NAMES = ['Mehmet','Mustafa','Hasan','Kerem','Burak','Emre','Yusuf','Can','Oğuz','Tolga','Baran','Umut','Ahmet','İsmail','Hüseyin','Osman','Recep','Cemal','Halil','Rıfat','Şükrü','Veli','Yakup','Kadir','Nuri','Ramazan','Bekir','Fikri','Hamdi'];
+const AVATARS = ['👨','👴','🧔','👨‍🦱','👨‍🦳','🧑','👨‍🌾','👲','🧓','👱‍♂️','🧔‍♂️','👨‍🦰','🤵','👮‍♂️','🧑‍🌾','👷‍♂️','🕵️‍♂️','🧑‍🦲','👨‍🦲','🧑‍🦱','🧑‍🦳','💂‍♂️','🧙‍♂️','🤠'];
 
 export const PERSONALITIES = {
   sessiz:  { label:'Sessiz',  talk:.35, aggr:.3, logic:.6, herd:.4 },
@@ -123,11 +124,11 @@ export class SoloGame {
     const names=r.shuffle(BOT_NAMES).slice(0,n-1), avs=r.shuffle(AVATARS);
     const pkeys=Object.keys(PERSONALITIES);
     const arch=[LN.ARCHETYPES[0], ...r.shuffle(LN.ARCHETYPES.slice(1))];
-    this.players=[{ id:'me', name:this.humanName, avatar:'🙋', role:humanRole, alive:true, human:true, cred:1, claimed:null, claims:[], knows:{}, sus:{}, title:'', pitch:1 }];
+    this.players=[{ id:'me', name:this.humanName, avatar:'🙋', role:humanRole, alive:true, human:true, cred:1, claimed:null, claims:[], knows:{}, sus:{}, title:'', pitch:1, arch:'player' }];
     botRoles.forEach((role,i)=>{
       const pk = role==='vampir' && r.chance(.5) ? 'yalanci' : r.pick(pkeys);
       const a=arch[i%arch.length];
-      this.players.push({ id:'b'+i, name:names[i], avatar:avs[i], role, alive:true, human:false, pers:PERSONALITIES[pk], persKey:pk, cred:1, claimed:null, claims:[], knows:{}, sus:{}, title:a.title, pitch:a.pitch });
+      this.players.push({ id:'b'+i, name:names[i], avatar:avs[i], role, alive:true, human:false, pers:PERSONALITIES[pk], persKey:pk, cred:1, claimed:null, claims:[], knows:{}, sus:{}, title:a.title, pitch:a.pitch, arch:a.key });
     });
     for(const p of this.players) for(const q of this.players) if(p!==q) p.sus[q.id]=0;
     const vamps=this.players.filter(p=>p.role==='vampir');
@@ -147,13 +148,13 @@ export class SoloGame {
   aliveBots(){ return this.alive().filter(p=>!p.human); }
   ev(e){ e.day=this.day; this.events.push(e); }
   say(who, text, kind='talk'){
-    const e={ t:'say', day:this.day, who: who?who.id:null, name: who?who.name:'Anlatıcı', title: who?.title||'', avatar: who?who.avatar:'🌙', pitch: who?.pitch||1, text, kind };
+    const e={ t:'say', day:this.day, who: who?who.id:null, name: who?who.name:'Anlatıcı', title: who?.title||'', avatar: who?who.avatar:'🌙', pitch: who?.pitch||1, arch: who?.arch||null, text, voice:LN.spokenFor(text), kind };
     this.feed.push(e); this.events.push(e);
   }
-  narr(text){ const e={ t:'narr', day:this.day, who:null, name:'Anlatıcı', avatar:'🌙', text, kind:'narr' }; this.feed.push(e); this.events.push(e); }
+  narr(text){ const e={ t:'narr', day:this.day, who:null, name:'Anlatıcı', avatar:'🌙', text, voice:LN.spokenFor(text), kind:'narr' }; this.feed.push(e); this.events.push(e); }
   sfx(name){ this.ev({t:'sfx', name}); }
   pk(arr){ return LN.pick(arr, this.rng); }
-  line(arr, m){ return LN.fillT(this.pk(arr), m||{}); }
+  line(arr, m){ return LN.fillT(this.pk(arr), m||{}, NEG_POOLS.has(arr)); }
   /** Köy görseli için kalıcı durum */
   villageState(){ const s={}; const hanged=this.players.filter(p=>p.fate==='hanged').sort((a,b)=>a.hangOrder-b.hangOrder); const lastHanged=hanged.slice(-3);
     for(const p of this.players){ if(p.fate==='impaled') s[p.id]={impaled:true, stakeK:p.stakeK}; else if(p.fate==='hanged' && lastHanged.includes(p)) s[p.id]={hanged:true, hangK:lastHanged.indexOf(p)}; else if(!p.alive) s[p.id]={dead:true}; }
@@ -248,7 +249,7 @@ export class SoloGame {
     this.day++; this.stats.days=this.day;
     this.ev({t:'night', on:false}); this.sfx('bell');
     const m=this.muhtar();
-    if(killed){ this.ev({t:'dead', who:killed.id}); const txt=this.line(LN.DAWN_DEAD,{v:killed.name}); if(m) this.say(m, txt); else this.narr(txt); this.narr(`${killed.name} ${ROLE_INFO[killed.role].name.toLowerCase()}${roleSuffix(killed.role)}.`); }
+    if(killed){ this.ev({t:'dead', who:killed.id}); const txt=this.line(LN.DAWN_DEAD,{v:killed.name}); if(m) this.say(m, txt); else this.narr(txt); this.narr(LN.regSpoken(`${killed.name} ${ROLE_INFO[killed.role].name.toLowerCase()}${roleSuffix(killed.role)}.`,`Meğer ${ROLE_INFO[killed.role].name.toLowerCase()}${roleSuffix(killed.role)}!`)); }
     else { const txt=this.line(saved?LN.DAWN_SAVED:LN.DAWN_NONE); if(m) this.say(m, txt); else this.narr(txt); }
     this.phase='dawn'; this.needs=null;
     if(this._checkWin()) return;
@@ -280,11 +281,11 @@ export class SoloGame {
     if(this.phase!=='talk') return;
     const h=this.human;
     switch(a.type){
-      case 'accuse': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, `${t.name} vampir olabilir la. Ona oy vereceğim.`); this._accuse(h,t); break; }
-      case 'defend': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, `${t.name} masum, ona kefilim.`); this._defend(h,t); break; }
+      case 'accuse': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, LN.regSpoken(`${t.name} vampir olabilir la. Ona oy vereceğim.`,'Bu herif vampir olabilir la. Ona oy vereceğim.')); this._accuse(h,t); break; }
+      case 'defend': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, LN.regSpoken(`${t.name} masum, ona kefilim.`,'Bu adam masum, ona kefilim.')); this._defend(h,t); break; }
       case 'claimSeer': { const t=this.P(a.target); if(!t||!t.alive) return; const isVamp=!!a.isVamp;
         if(h.role==='kahin' && h.knows[a.target]!==isVamp) return;
-        this.say(h, isVamp?`Ben kâhinim la! Dün gece ${LN.suf(t.name,'e')} baktım: VAMPİR!`:`Ben kâhinim. ${t.name} temiz, ona oy vermeyin.`);
+        this.say(h, isVamp?LN.regSpoken(`Ben kâhinim la! Dün gece ${LN.suf(t.name,'e')} baktım: VAMPİR!`,'Ben kâhinim la! Dün gece bu herife baktım: VAMPİR!'):LN.regSpoken(`Ben kâhinim. ${t.name} temiz, ona oy vermeyin.`,'Ben kâhinim. Bu adam temiz, ona oy vermeyin.'));
         this._claimSeer(h,t,isVamp); break; }
       case 'claimDoctor': { this.say(h, this.lastNight?.saved?'Doktor benim, dün gece kurtaran bendim.':'Ben doktorum, bana dokunmayın.'); this._claimDoctor(h); break; }
       default: { this.stats.quietRounds++; this.say(h,'…','quiet'); }
@@ -374,6 +375,7 @@ export class SoloGame {
   _toSelect(){
     this.phase='select'; this.selectVotes={};
     const m=this.muhtar(); const t=this.line(LN.SELECT_INTRO); if(m) this.say(m,t); else this.narr(t);
+    this.ev({t:'disperse'});
     if(this.human.alive) this.needs={ type:'select', cands:this.alive().filter(p=>!p.human).map(p=>p.id) };
     else { this.needs=null; this.selectHouse(null); }
   }
@@ -397,12 +399,13 @@ export class SoloGame {
     this.ev({t:'badges', counts:t});
     // birkaç seçmen konuşsun
     const voters=r.shuffle(Object.keys(votes).filter(id=>votes[id]===acc.id && id!==h.id).map(id=>this.P(id))).slice(0,2);
-    for(const v of voters) this.say(v, r.chance(.5)?`Ben ${LN.suf(acc.name,'i')} seçtim!`:this.line(LN.ACCUSE_HERD,{t:acc.name}));
-    this.narr(`En çok seçilen: ${acc.name} (${max} oy). Evinden alınıp meydana getiriliyor!`);
+    for(const v of voters) this.say(v, r.chance(.5)?LN.regSpoken(`Ben ${LN.suf(acc.name,'i')} seçtim!`,'Ben bu herifi seçtim!'):this.line(LN.ACCUSE_HERD,{t:acc.name}));
+    this.narr(LN.regSpoken(`En çok seçilen: ${acc.name} (${max} oy). Evinden alınıp meydana getiriliyor!`,'Köy kararını verdi! Evinden alınıp meydana getiriliyor!'));
     const crowd=r.shuffle(this.alive().filter(p=>p!==acc)).slice(0,4).map(p=>p.id);
     this.ev({t:'drag', target:acc.id, crowd});
     if(crowd.length){ const c=this.P(crowd.find(id=>!this.P(id).human)||crowd[0]); this.say(c, this.pk(LN.DRAG.crowd)); }
     this.say(acc, this.pk(LN.DRAG.accused));
+    this.ev({t:'escort', who:acc.id, crowd});
     this.ev({t:'badges', counts:{}});
     this.accused=acc.id;
     this._defense();
@@ -412,7 +415,7 @@ export class SoloGame {
   _defense(){
     const acc=this.P(this.accused);
     this.phase='defense';
-    this.narr(`${acc.name}, söz senin. Kendini savun!`);
+    this.narr(LN.regSpoken(`${acc.name}, söz senin. Kendini savun!`,'Söz sende. Kendini savun!'));
     if(acc.human){ this.needs={ type:'defense', options:LN.DEFENSE_HUMAN.map(o=>({key:o.key,label:o.label})), targets:this.alive().filter(p=>p!==acc).map(p=>p.id) }; return; }
     this._botDefense(acc);
     this._responses(acc);
@@ -422,11 +425,11 @@ export class SoloGame {
     if(this.phase!=='defense'||!this.needs) return;
     const h=this.human; const others=this.alive().filter(p=>p!==h); const r=this.rng;
     switch(key){
-      case 'innocent': { const o=r.pick(others.filter(p=>!p.human)); this.say(h, `Ben köylüyüm la! Dün gece evdeydim, ${o.name} şahidim.`); for(const b of this._others(h)) b.sus[h.id]-=0.5*h.cred*(1-b.pers.logic*0.4); if(o.role!=='vampir' && (o.sus[h.id]||0)<0.5){ this.say(o,'Doğru diyo, yanımdaydı.'); for(const b of this._others(h)) b.sus[h.id]-=0.4; } break; }
-      case 'blame': { const t=this.P(targetId); if(!t||!t.alive||t===h) return; this.say(h, `Beni bırakın, asıl vampir ${t.name}! Gözlerine bakın gözlerine!`); this._accuse(h,t); for(const b of this._others(h)) b.sus[h.id]-=0.2; break; }
+      case 'innocent': { const o=r.pick(others.filter(p=>!p.human)); this.say(h, LN.regSpoken(`Ben köylüyüm la! Dün gece evdeydim, ${o.name} şahidim.`,'Ben köylüyüm la! Dün gece evdeydim, şu adam şahidim.')); for(const b of this._others(h)) b.sus[h.id]-=0.5*h.cred*(1-b.pers.logic*0.4); if(o.role!=='vampir' && (o.sus[h.id]||0)<0.5){ this.say(o,'Doğru diyo, yanımdaydı.'); for(const b of this._others(h)) b.sus[h.id]-=0.4; } break; }
+      case 'blame': { const t=this.P(targetId); if(!t||!t.alive||t===h) return; this.say(h, LN.regSpoken(`Beni bırakın, asıl vampir ${t.name}! Gözlerine bakın gözlerine!`,'Beni bırakın, asıl vampir bu herif! Gözlerine bakın gözlerine!')); this._accuse(h,t); for(const b of this._others(h)) b.sus[h.id]-=0.2; break; }
       case 'role': {
         if(h.role==='kahin'){ const known=Object.entries(h.knows).filter(([id])=>this.P(id).alive); const vamp=known.find(([,v])=>v); const pickK=vamp||known[0];
-          if(pickK){ const t=this.P(pickK[0]); this.say(h, pickK[1]?`Ben kâhinim la! ${t.name} VAMPİR, beni değil onu asın!`:`Ben kâhinim! ${t.name} temiz, ben de masumum.`); this._claimSeer(h,t,!!pickK[1]); }
+          if(pickK){ const t=this.P(pickK[0]); this.say(h, pickK[1]?LN.regSpoken(`Ben kâhinim la! ${t.name} VAMPİR, beni değil onu asın!`,'Ben kâhinim la! Bu herif VAMPİR, beni değil onu asın!'):LN.regSpoken(`Ben kâhinim! ${t.name} temiz, ben de masumum.`,'Ben kâhinim! Bu adam temiz, ben de masumum.')); this._claimSeer(h,t,!!pickK[1]); }
           else { this.say(h,'Ben kâhinim la! Daha kimseye bakamadım, asmayın beni!'); h.claimed='kahin'; for(const b of this._others(h)) if(b.role!=='vampir') b.sus[h.id]-=0.8; } }
         else if(h.role==='doktor'){ this.say(h,'Ben doktorum! Beni asarsanız geceleri kimse korunmaz!'); this._claimDoctor(h); }
         else { this.say(h,'Ben düz köylüyüm la, bi suçum yok! Yapmayın!'); for(const b of this._others(h)) b.sus[h.id]-=0.3; }
@@ -439,11 +442,11 @@ export class SoloGame {
   }
   _botDefense(acc){
     const r=this.rng, iq=this.iq; const others=this.alive().filter(p=>p!==acc);
-    if(acc.role==='kahin'){ const found=Object.entries(acc.knows).find(([id,v])=>v===true && this.P(id).alive); if(found){ const t=this.P(found[0]); this.say(acc, `Ben kâhinim la! ${t.name} VAMPİR! Beni değil onu asın!`); this._claimSeer(acc,t,true); return; } }
+    if(acc.role==='kahin'){ const found=Object.entries(acc.knows).find(([id,v])=>v===true && this.P(id).alive); if(found){ const t=this.P(found[0]); this.say(acc, LN.regSpoken(`Ben kâhinim la! ${t.name} VAMPİR! Beni değil onu asın!`,'Ben kâhinim la! Bu herif VAMPİR! Beni değil onu asın!')); this._claimSeer(acc,t,true); return; } }
     if(acc.role==='doktor' && r.chance(.7)){ this.say(acc,'Ben doktorum! Beni asarsanız geceleri kimse korunmaz!'); this._claimDoctor(acc); return; }
     if(acc.role==='vampir'){
       const realSeer=others.find(p=>p.claimed==='kahin');
-      if(!realSeer && r.chance(iq*0.5)){ const t=r.pick(others.filter(p=>p.role!=='vampir')); this.say(acc, `Ben kâhinim! Dün gece ${LN.suf(t.name,'e')} baktım: VAMPİR o!`); this._claimSeer(acc,t,true); return; }
+      if(!realSeer && r.chance(iq*0.5)){ const t=r.pick(others.filter(p=>p.role!=='vampir')); this.say(acc, LN.regSpoken(`Ben kâhinim! Dün gece ${LN.suf(t.name,'e')} baktım: VAMPİR o!`,'Ben kâhinim! Dün gece bu herife baktım: VAMPİR o!')); this._claimSeer(acc,t,true); return; }
       const t=this._crowdSuspect(others.filter(p=>p.role!=='vampir'),acc)||r.pick(others.filter(p=>p.role!=='vampir'));
       this.say(acc, this.line(LN.DEFENSE_BOT,{o:t.name})); if(r.chance(.5)) this._accuse(acc,t);
       for(const b of this._others(acc)) b.sus[acc.id]-=0.25*(1-b.pers.logic*0.5);
@@ -467,7 +470,7 @@ export class SoloGame {
   _toFinal(){
     this.phase='final'; this.finalVotes={};
     const acc=this.P(this.accused);
-    this.narr(`Son karar: ${acc.name} asılsın mı? Herkes oyunu versin ve kitlesin!`);
+    this.narr(LN.regSpoken(`Son karar: ${acc.name} asılsın mı? Herkes oyunu versin ve kitlesin!`,'Son karar! Asılsın mı, bırakılsın mı? Herkes oyunu versin ve kitlesin!'));
     // kararlı botlar önce kitler
     for(const b of this.rng.shuffle(this.aliveBots().filter(p=>p!==acc))){
       const d=this._botFinalScore(b,acc);
@@ -503,7 +506,7 @@ export class SoloGame {
     for(const b of this.rng.shuffle(this.aliveBots().filter(p=>p!==acc && !this.finalVotes[p.id]))){ const d=this._botFinalScore(b,acc); this._lockBot(b, d>0?'hang':'release'); }
     const hang=Object.values(this.finalVotes).filter(v=>v==='hang').length;
     const rel=Object.values(this.finalVotes).filter(v=>v==='release').length;
-    this.narr(`Sonuç: ${hang} AS, ${rel} BIRAK.`);
+    this.narr(LN.regSpoken(`Sonuç: ${hang} AS, ${rel} BIRAK.`, hang>rel?'Oylar sayıldı. Köy AS dedi!':'Oylar sayıldı. Köy BIRAK dedi!'));
     if(hang>rel) this._execute(acc, hang, rel);
     else {
       const m=this.muhtar(); this.ev({t:'release', who:acc.id}); this.say(m||acc, this.pk(LN.RELEASE));
@@ -542,7 +545,7 @@ export class SoloGame {
       this.ev({t:'hang', who:acc.id, vamp:false});
       acc.alive=false; acc.fate='hanged'; acc.hangOrder=this.hangCount++;
       const s1=this.speaker([acc]); if(s1) this.say(s1, this.pk(LN.HANG_VILLAGER));
-      this.narr(`${acc.name} ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}.`);
+      this.narr(LN.regSpoken(`${acc.name} ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}.`,`Meğer ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}!`));
       if(acc.human) this.stats.humanDiedDay=this.day;
     }
     this.lastVote={ hanged:acc.id, name:acc.name, role:acc.role, hang, rel, votes:hangVotes, tally:{[acc.id]:hang}, skips:rel };
@@ -578,7 +581,7 @@ export class SoloGame {
     if(v===0) this.winner='koylu'; else if(v>=o) this.winner='vampir';
     if(!this.winner) return false;
     this.phase='end'; this.needs=null;
-    this.ev({t:'night', on:this.winner==='vampir'}); this.ev({t:'gather'});
+    this.ev({t:'night', on:this.winner==='vampir', end:true}); this.ev({t:'gather', end:true});
     if(this.winner==='vampir'){
       const vamps=this.aliveVamps(); const vills=al.filter(p=>p.role!=='vampir');
       vamps.forEach(p=>this.ev({t:'fangs', who:p.id}));
@@ -626,7 +629,7 @@ export class SoloGame {
     return { won, stars, objOk, objText, perfect, days:s.days, role:this.human.role };
   }
 }
-function roleSuffix(role){ return { koylu:'müş', doktor:'muş', kahin:'miş', vampir:'miş' }[role]||'miş'; }
+function roleSuffix(role){ return { koylu:'ymüş', doktor:'muş', kahin:'miş', vampir:'miş' }[role]||'miş'; }
 
 
 /* ------------------------------ SEVİYELER ------------------------------ */

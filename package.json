@@ -17,6 +17,7 @@
     "@capacitor/ios": "^7.6.10",
     "@supabase/supabase-js": "^2.119.0",
     "esbuild": "^0.28.2",
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^23.11.1",
+    "three": "^0.170.0"
   }
 }

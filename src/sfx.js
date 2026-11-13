@@ -38,3 +38,6 @@ const SFX = {
   set(on){ enabled=on; }, get enabled(){ return enabled; }, unlock(){ AC(); },
 };
 export default SFX;
+/** Ortak ses bağlamı (seslendirme de bunu kullanır) */
+export function audioCtx(){ return AC(); }
+export function audioOut(){ AC(); return master; }

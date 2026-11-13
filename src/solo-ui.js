@@ -6,6 +6,8 @@ import { createVillage } from './village.js';
 import { createScene } from './scene.js';
 import { setHardMode } from './lines.js';
 import SFX from './sfx.js';
+import { createSpeaker, prefetchLines, loadVoices } from './voice.js';
+import { stageWanted, stage3d, hideStage, loadingHTML, setRenderPref, setQualityPref } from './stage-prefs.js';
 
 const ROLE_DESC = {
   vampir:'Her gece bir kurban seçersin. Gündüz masum rolü yap, kâhini erken yok et. Köylü sayısı vampirlere eşitlenince kazanırsın.',
@@ -29,6 +31,7 @@ export function mountSolo(ctx){
   const totalStars=()=>Object.values(save.stars).reduce((a,b)=>a+b,0);
 
   function render(){
+    if(screen!=='game'){ hideStage(); if(D){ try{ D.dispose(); }catch(e){} D=null; } }
     switch(screen){
       case 'map': return renderMap();
       case 'intro': return renderIntro();
@@ -89,14 +92,40 @@ export function mountSolo(ctx){
   }
 
   /* ================= OYUN (köy sahnesi) ================= */
-  let V=null, SC=null, cursor=0, sel=null, finalChoice=null, talkMode=null, defMode=null, shownLines=[];
-  function startGame(L){
+  let endFolded=false; const speaker=createSpeaker(voice); loadVoices();
+  let V=null, SC=null, D=null, is3d=false, cursor=0, sel=null, finalChoice=null, talkMode=null, defMode=null, shownLines=[];
+  async function startGame(L){
     SFX.unlock();
     level=L; const longIntro=!save.seenIntro;
     const hn=(localStorage.getItem('vk_name')||'').trim()||'Oyuncu';
     G=new SoloGame(L,{rng:makeRng((Date.now()^(typeof L.id==='number'?L.id*2654435761:7))>>>0), humanName:hn, longIntro});
     if(longIntro){ save.seenIntro=true; persist(); }
-    cursor=0; sel=null; finalChoice=null; talkMode=null; defMode=null; pendingXp=null; shownLines=[]; screen='game';
+    cursor=0; sel=null; finalChoice=null; talkMode=null; defMode=null; pendingXp=null; shownLines=[]; screen='game'; endFolded=false;
+    if(D){ try{ D.dispose(); }catch(e){} D=null; } SC=null; V=null;
+    is3d=stageWanted();
+    if(is3d){
+      const myG=G;
+      app.innerHTML=`<div class="game g3d fade">
+        <div class="topbar" id="gTop"></div>
+        <div class="spacer"></div>
+        <div class="subs" id="gLines"></div>
+        <div id="gPanel"></div>
+        <div id="gLog" class="logmodal hidden"></div>
+        ${loadingHTML()}
+      </div>`;
+      drawTop();
+      const bar=app.querySelector('#gLoadBar');
+      try{
+        const S3=await stage3d(); if(G!==myG || screen!=='game') return;
+        S3.showStage(true);
+        await S3.ensureStage((p)=>{ if(bar) bar.style.width=Math.round(p*100)+'%'; });
+        if(G!==myG || screen!=='game') return;
+        D=await S3.newDirector(G.players,{ voice, onLine:addLine, onPick:onHouse, speak:speaker, prefetch:prefetchLines });
+        SC=D; V={ highlight:(id,on)=>D.highlight(id,on), setNight(){} };
+        const ld=app.querySelector('#gLoad'); if(ld){ ld.classList.add('out'); setTimeout(()=>ld.remove(),700); }
+        renderGame(); return;
+      }catch(err){ console.error('3B açılamadı',err); is3d=false; hideStage(); setRenderPref('2d'); toast('3B grafik açılamadı, basit görünüme geçildi'); }
+    }
     app.innerHTML=`<div class="game fade">
       <div class="topbar" id="gTop"></div>
       <div class="vwrap" id="gVillage"></div>
@@ -105,27 +134,31 @@ export function mountSolo(ctx){
       <div id="gLog" class="logmodal hidden"></div>
     </div>`;
     V=createVillage(app.querySelector('#gVillage'), { players:G.players.map(p=>({id:p.id, name:p.human?p.name+' (sen)':p.name, avatar:p.avatar})), onHouse });
-    SC=createScene({ village:V, voice, onLine:addLine });
+    SC=createScene({ village:V, voice, onLine:addLine, speak:speaker });
     V.setNight(false);
     renderGame();
   }
-  function renderGame(){ drawTop(); renderPanel(); }
+  function sync3d(){ if(!is3d||!D||!SC||SC.busy||!G) return; D.setMode(G.phase); D.setCandidates(pickCands()); }
+  function renderGame(){ drawTop(); renderPanel(); sync3d(); }
   function flush(){
+    if(!SC) return;
     const evs=G.events.slice(cursor); cursor=G.events.length;
-    sel=null; talkMode=null; defMode=null; V.highlight(null);
+    sel=null; talkMode=null; defMode=null; V.highlight(null); if(is3d&&D) D.setCandidates(null);
     SC.play(evs, ()=>{ SC.sync(G.villageState()); renderGame(); });
     renderGame();
   }
   function addLine(e){
     shownLines.push(e); if(shownLines.length>3) shownLines.shift();
     const el=app.querySelector('#gLines'); if(!el) return;
+    if(is3d){ const l=e; const pv=shownLines.length>1?shownLines[shownLines.length-2]:null; const cut=(t,n)=>t.length>n?t.slice(0,n-2)+'…':t;
+      el.innerHTML=`${pv?`<div class="prev">${esc(pv.t==='narr'?'Anlatıcı':pv.name)}: ${esc(cut(pv.text,72))}</div>`:''}<div class="who">${l.t==='narr'?'🌙 Anlatıcı':`${esc(l.avatar)} ${esc(l.name)}${l.title?` <span class="tt">· ${esc(l.title)}</span>`:''}`}</div><div class="tx ${l.t==='narr'?'narr':''} ${l.kind==='scream'?'scream':''}">${esc(l.text)}</div>`; return; }
     el.innerHTML=shownLines.map((l,i)=>`<div class="ln ${l.t==='narr'?'narr':''} ${l.kind==='scream'?'scream':''} ${i===shownLines.length-1?'last':''}"><b>${l.t==='narr'?'🌙':esc(l.avatar)} ${esc(l.name)}${l.title?` <span class="tt">${esc(l.title)}</span>`:''}:</b> ${esc(l.text)}</div>`).join('');
   }
   function drawTop(){
     const t=app.querySelector('#gTop'); if(!t||!G) return; const r=ROLE_INFO[G.human.role];
     const ph={roles:'Başlıyor',talk:'Meydan',select:'Seçim',defense:'Savunma',final:'Son karar',verdict:'Hüküm',night:'Gece',dawn:'Sabah',end:'Bitti'}[G.phase]||'';
     t.innerHTML=`<button id="bQuit">✕</button><span class="pill">${G.day?`Gün ${G.day} · `:''}${ph}</span><span class="pill">${r.ic} ${r.name}</span><button id="bLog">📜</button><button id="bVoice">${voice.on?'🔊':'🔇'}</button>`;
-    t.querySelector('#bQuit').onclick=()=>{ if(G.phase==='end'||confirmQuit()){ SC.skip(); try{speechSynthesis.cancel();}catch(e){} screen=level.free?'free':'map'; render(); } };
+    t.querySelector('#bQuit').onclick=()=>{ if(G.phase==='end'||!SC||confirmQuit()){ SC&&SC.skip(); try{speechSynthesis.cancel();}catch(e){} screen=level.free?'free':'map'; render(); } };
     t.querySelector('#bVoice').onclick=()=>{ voice.set(!voice.on); if(!voice.on){ try{speechSynthesis.cancel();}catch(e){} } drawTop(); };
     t.querySelector('#bLog').onclick=toggleLog;
   }
@@ -148,12 +181,13 @@ export function mountSolo(ctx){
     if(G.phase==='defense'&&defMode==='blame') return G.needs.targets;
     return null;
   }
-  function onHouse(id){ const c=pickCands(); if(!c||!c.includes(id)) return; sel=id; V.highlight(id,true); renderPanel(); }
+  function onHouse(id){ const c=pickCands(); if(!c||!c.includes(id)) return; sel=id; V.highlight(id,true); renderPanel(); if(is3d&&D) D.setCandidates(c); }
   const chips=(ids)=>`<div class="chips">${ids.map(id=>{ const p=G.P(id); return `<button class="chip ${sel===id?'on':''}" data-chip="${id}">${p.avatar} ${esc(p.human?p.name+' (sen)':p.name)}${p.claimed?` <small>"${ROLE_INFO[p.claimed].name}"</small>`:''}</button>`; }).join('')}</div>`;
 
   function renderPanel(){
     const el=app.querySelector('#gPanel'); if(!el||!G) return;
-    if(SC.busy){ el.innerHTML=`<div class="card panelc"><button class="btn sec" id="bSkip">⏩ Geç</button></div>`; el.querySelector('#bSkip').onclick=()=>SC.skip(); return; }
+    if(!SC){ el.innerHTML=''; return; }
+    if(SC.busy){ el.innerHTML=is3d?`<div class="skipf"><button id="bSkip">⏩ Geç</button></div>`:`<div class="card panelc"><button class="btn sec" id="bSkip">⏩ Geç</button></div>`; el.querySelector('#bSkip').onclick=()=>SC.skip(); return; }
     const h=G.human, r=ROLE_INFO[h.role]; let html='';
     switch(G.phase){
       case 'roles': {
@@ -192,9 +226,9 @@ export function mountSolo(ctx){
         const sr=G.lastNight?.seer;
         html=`${sr?`<div class="card panelc" style="text-align:center;border-color:var(--blue)">🔮 <b>${esc(G.P(sr.target).name)}</b> ${sr.isVamp?'<span class="bad">bir VAMPİR!</span>':'<span class="ok">vampir değil.</span>'}<div class="note">Sadece sen biliyorsun.</div></div>`:''}
           <button class="btn gold" id="bTalk">🔔 Meydana toplan</button>`; break; }
-      case 'end': html=viewEnd(); break;
+      case 'end': html=is3d?`<div class="skipf" style="margin-bottom:6px"><button id="bFold">${endFolded?'▴ Sonucu göster':'▾ Sahneyi gör'}</button></div><div class="sheet-scroll" style="${endFolded?'display:none':''}">${viewEnd()}</div>`:viewEnd(); break;
     }
-    el.innerHTML=html; bindPanel(el);
+    el.innerHTML=html; bindPanel(el); if(is3d) sync3d();
   }
   function bindPanel(el){
     const q=(s)=>el.querySelector(s);
@@ -203,6 +237,7 @@ export function mountSolo(ctx){
     el.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{ const t=b.dataset.act; if(t==='quiet'||t==='claimDoctor'){ G.talkAction({type:t}); flush(); } else { talkMode=t; sel=null; renderPanel(); } });
     el.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>{ const o=G.humanOptions().find(x=>x.type==='claimSeer'); const x=o.results[+b.dataset.claim]; G.talkAction({type:'claimSeer',target:x.target,isVamp:x.isVamp}); flush(); });
     q('#bCancel')&&(q('#bCancel').onclick=()=>{ talkMode=null; defMode=null; sel=null; V.highlight(null); renderPanel(); });
+    q('#bFold')&&(q('#bFold').onclick=()=>{ endFolded=!endFolded; renderPanel(); });
     q('#bDo')&&(q('#bDo').onclick=()=>{ G.talkAction({type:talkMode,target:sel}); flush(); });
     q('#bSel')&&(q('#bSel').onclick=()=>{ G.selectHouse(sel); flush(); });
     el.querySelectorAll('[data-def]').forEach(b=>b.onclick=()=>{ const k=b.dataset.def; if(k==='blame'){ defMode='blame'; sel=null; renderPanel(); } else { G.defend(k); flush(); } });
@@ -265,14 +300,21 @@ export function mountSolo(ctx){
   /* ---------------- İSTATİSTİK ---------------- */
   function renderStats(){
     const wr=save.games?Math.round(100*save.wins/save.games):0;
+    let r3d=true, curQ='auto'; try{ r3d=localStorage.getItem('vk_render')!=='2d'; curQ=localStorage.getItem('vk_quality')||'auto'; }catch(e){}
     app.innerHTML=`<div class="fade">
       <div class="topbar"><button id="bBack">‹ Harita</button><span class="pill">İstatistik</span><span></span></div>
       <div class="card"><div class="row"><div><label>Oyun</label><div class="big">${save.games}</div></div><div><label>Kazanma</label><div class="big">%${wr}</div></div><div><label>En iyi seri</label><div class="big">${save.best}</div></div></div></div>
       <div class="card"><label>Role göre</label><ul class="plist">${Object.keys(ROLE_INFO).map(r=>{ const b=save.byRole[r]||{g:0,w:0}; return `<li><span class="av">${ROLE_INFO[r].ic}</span><span class="nm">${ROLE_INFO[r].name}</span><span class="tag">${b.g} oyun</span><span class="cnt" style="background:${b.g?'var(--green)':'var(--card2)'};color:#03150c">${b.g?Math.round(100*b.w/b.g)+'%':'–'}</span></li>`; }).join('')}</ul></div>
       <div class="card"><label>Rütbeler</label><ul class="plist">${RANKS.map(k=>`<li class="${save.xp>=k.xp?'':'dead'}"><span class="av">${k.ic}</span><span class="nm">${k.name}</span><span class="tag">${k.xp} XP</span></li>`).join('')}</ul></div>
+      <div class="card"><label>Grafik</label>
+        <div class="acts"><button class="btn sm ${r3d?'gold':'sec'}" data-gfx="3d">🎬 3B sinematik</button><button class="btn sm ${r3d?'sec':'gold'}" data-gfx="2d">🖼️ 2B basit</button></div>
+        <div class="acts">${['auto','high','medium','low'].map(k=>`<button class="btn sm ${curQ===k?'gold':'sec'}" data-q="${k}">${{auto:'Otomatik',high:'Yüksek',medium:'Orta',low:'Düşük'}[k]}</button>`).join('')}</div>
+        <div class="note">Kalite değişikliği uygulamayı yeniden açınca uygulanır. Telefon ısınırsa Orta/Düşük seç.</div></div>
       <div class="card"><label>Ayarlar</label><button class="btn ${save.hard!==false?'':'sec'}" id="bHard">${save.hard!==false?'🌶️ Sert mod AÇIK (argolu şive)':'🙂 Sert mod KAPALI (yumuşak dil)'}</button><button class="btn sec" id="bIntro">Açılış sahnesini yeniden göster</button></div>
       <button class="btn sec" id="bReset">İlerlemeyi sıfırla</button></div>`;
     app.querySelector('#bBack').onclick=()=>{screen='map';render();};
+    app.querySelectorAll('[data-gfx]').forEach(b=>b.onclick=()=>{ setRenderPref(b.dataset.gfx); render(); });
+    app.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{ setQualityPref(b.dataset.q==='auto'?null:b.dataset.q); render(); toast('Kalite ayarı kaydedildi'); });
     app.querySelector('#bHard').onclick=()=>{ save.hard = save.hard===false; setHardMode(save.hard); persist(); render(); };
     app.querySelector('#bIntro').onclick=()=>{ save.seenIntro=false; persist(); toast('Bir sonraki oyunda açılış sahnesi tam oynayacak'); };
     app.querySelector('#bReset').onclick=()=>{ if(resetArmed){ save={stars:{},xp:0,games:0,wins:0,byRole:{},streak:0,best:0}; persist(); resetArmed=false; toast('İlerleme sıfırlandı'); render(); } else { resetArmed=true; toast('Emin misin? Tekrar bas.'); setTimeout(()=>resetArmed=false,3000);} };

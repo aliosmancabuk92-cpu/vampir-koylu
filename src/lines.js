@@ -7,7 +7,25 @@ export function setHardMode(v){ hard=!!v; }
 export function isHardMode(){ return hard; }
 const L = (x)=> typeof x==='string' ? x : (hard ? x.h : x.s);
 export function pick(arr, rng){ const r = rng ? rng() : Math.random(); return L(arr[Math.floor(r*arr.length)]); }
-export function fillT(t, m){ return t.replace(/\{(\w+?)(?:_(e|i|in|de))?\}/g,(_,k,kind)=>{ const v=m[k]??''; return kind?suf(v,kind):v; }); }
+export function fillT(t, m, neg=false){ const text=t.replace(/\{(\w+?)(?:_(e|i|in|de))?\}/g,(_,k,kind)=>{ const v=m[k]??''; return kind?suf(v,kind):v; }); if(text!==t) SPOKEN.set(text, fillSpoken(t,neg,m)); return text; }
+
+/* ---- SESLENDİRME: isimler sesli okunmaz, yerine işaret zamiri gelir (önceden kaydedilmiş sesler için) ---- */
+const SPOKEN=new Map();
+const DEM={
+  t:{ '':'bu adam', e:'bu adama', i:'bu adamı', in:'bu adamın', de:'bu adamda' },
+  tn:{ '':'bu herif', e:'bu herife', i:'bu herifi', in:'bu herifin', de:'bu herifte' },
+  o:{ '':'şu adam', e:'şu adama', i:'şu adamı', in:'şu adamın', de:'şu adamda' },
+  v:{ '':'garibim', e:'garibe', i:'garibi', in:'garibin', de:'garipte' },
+};
+const ROLE_SP={ doktor:'doktorum', kahin:'kâhinim', 'kâhin':'kâhinim', koylu:'köylüyüm', 'köylü':'köylüyüm' };
+const capFirst=(x)=>x.replace(/(^|[.!?…]\s+)([a-zçğıöşü])/g,(m,a,b)=>a+(b==='i'?'İ':b.toLocaleUpperCase('tr')));
+/** Şablonun seslendirilecek (isimsiz) hâli */
+export function fillSpoken(t, neg=false, m={}){ return capFirst(t.replace(/\{(\w+?)(?:_(e|i|in|de))?\}/g,(_,k,kind)=>{ if(k==='role') return m.role||'köylüyüm'; const tb=(k==='t'&&neg)?DEM.tn:(DEM[k]||DEM.t); return tb[kind||'']; })); }
+/** Motorun kendi kurduğu cümleler için sesli hâli kaydet */
+export function regSpoken(text, sp){ SPOKEN.set(text, sp); return text; }
+/** Ekrandaki metnin seslendirilecek karşılığı */
+export function spokenFor(text){ return SPOKEN.get(text) || text; }
+export const NEG_POOLS=new Set();
 
 /* Türkçe ek yardımcısı */
 const V='aeıioöuü'; const VL=(w)=>{ const l=w.toLowerCase(); for(let i=l.length-1;i>=0;i--) if(V.includes(l[i])) return l[i]; return 'e'; };
@@ -25,15 +43,15 @@ export function suf(name, kind){
 export const ARCHETYPES = [
   { key:'muhtar', title:'Muhtar', pitch:.8 },
   { key:'dayioglu', title:'Dayıoğlu', pitch:1.0 },
-  { key:'teyze', title:'Teyze', pitch:1.5 },
+  { key:'emmi', title:'Emmi', pitch:.9 },
   { key:'delikanli', title:'Delikanlı', pitch:1.15 },
-  { key:'memis', title:'Memiş', pitch:.9 },
-  { key:'nine', title:'Nine', pitch:1.6 },
+  { key:'memis', title:'Memiş', pitch:.95 },
+  { key:'dede', title:'Dede', pitch:.78 },
   { key:'coban', title:'Çoban', pitch:1.05 },
-  { key:'bakkal', title:'Bakkal', pitch:.95 },
-  { key:'imam', title:'Hoca', pitch:.85 },
-  { key:'gelin', title:'Gelin', pitch:1.4 },
-  { key:'usta', title:'Demirci', pitch:.75 },
+  { key:'bakkal', title:'Bakkal', pitch:.92 },
+  { key:'kahveci', title:'Kahveci', pitch:1.0 },
+  { key:'bekci', title:'Bekçi', pitch:.88 },
+  { key:'demirci', title:'Demirci', pitch:.75 },
   { key:'deli', title:'Deli', pitch:1.25 },
 ];
 

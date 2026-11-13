@@ -4,7 +4,7 @@
    ===================================================================== */
 import SFX from './sfx.js';
 
-export function createScene({ village, voice, onLine }){
+export function createScene({ village, voice, onLine, speak:speakImpl=null }){
   const V=village;
   let queue=[], running=false, skipping=false, wakeUp=null, doneCbs=[];
   const state={}; // görsel kalıcı durum {id:{dead,hanged,impaled}}
@@ -41,7 +41,7 @@ export function createScene({ village, voice, onLine }){
       case 'say': case 'narr': {
         onLine&&onLine(e);
         if(e.who && !skipping) V.bubble(e.who, e.text.length>110?e.text.slice(0,107)+'…':e.text, Math.max(1800, 900+e.text.length*60));
-        await speak(e); if(!skipping) await wait(180); break; }
+        await (speakImpl? speakImpl(e,{ skipping:()=>skipping, wait, hold:(fn)=>{ wakeUp=fn; return ()=>{ if(wakeUp===fn) wakeUp=null; }; } }) : speak(e)); if(!skipping) await wait(180); break; }
       case 'sfx': sfx(e.name); if(e.name==='bell'||e.name==='drum') await wait(500); break;
       case 'gather': V.gather(); await wait(1150); break;
       case 'home': V.goHome(); await wait(1150); break;

@@ -1,5 +1,5 @@
 /* Vampir Köylü — service worker: uygulama kabuğunu önbelleğe alır (çevrimdışı tek oyunculu) */
-const VERSION = 'vk-v3';
+const VERSION = 'vk-v4';
 const SHELL = ['./', './index.html', './solo.js', './multi.js', './supabase.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/maskable-512.png'];
 
