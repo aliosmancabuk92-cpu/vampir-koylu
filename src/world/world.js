@@ -14,6 +14,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildHouse, buildRibbon, HOUSE_TYPES, uvBox } from './houses.js';
+import { loadGLTF } from './people.js';
 
 /* ---------------- kalite ---------------- */
 export const QUALITY = {
@@ -339,7 +340,7 @@ export async function createWorld(container, { base='./assets/3d/', quality=dete
 
   /* ---------- sahne objeleri (modeller) ---------- */
   const propsLoaded={};
-  async function loadProp(name){ if(propsLoaded[name]) return propsLoaded[name]; propsLoaded[name]=gltfL.loadAsync(`${base}props/${name}.glb`).then(g=>{ g.scene.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); return g.scene; }).catch(()=>null); return propsLoaded[name]; }
+  async function loadProp(name){ if(propsLoaded[name]) return propsLoaded[name]; propsLoaded[name]=loadGLTF(gltfL,`${base}props/${name}${globalThis.VK_GLB_EXT||'.glb'}`).then(g=>{ g.scene.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); return g.scene; }).catch(()=>null); return propsLoaded[name]; }
   const propSpots=[ ['barrel_03',-8.2,-5.6,1.05,.3],['barrel_03',-8.9,-4.7,1.05,1.2],['barrel_03',8.4,-6.3,1.0,.7],['rock_moss_set_01',11.5,-4,0.6,1],['rock_moss_set_01',-11.2,5.2,0.55,2.4],
     ['shrub_02',-10.2,-1.0,1.5,0],['shrub_02',10.6,-1.4,1.3,1],['shrub_02',-3,12.5,1.3,2],['shrub_02',3.6,12.2,1.2,.6],['dead_tree_trunk',12.6,-9.5,1.4,.4],['dead_tree_trunk',-13,9,1.2,2.1] ];
   const propsP=Promise.all(propSpots.map(async ([n,x,z,s,r])=>{ const o=await loadProp(n); if(!o) return; const c=o.clone(); c.position.set(x,0,z); c.scale.setScalar(s); c.rotation.y=r; scene.add(c); }));

@@ -34,13 +34,19 @@ export const MALE_KEYS=['muhtar','dayioglu','emmi','delikanli','memis','dede','c
 export const FEMALE_KEYS=['kadin1','kadin2','kadin3'];
 
 let LIB=null, LIBP=null;
+/** GLB yükle; önizleme ortamında (yalnızca bazı dosya türleri sunulur) base64'lü JSON içinden okunur */
+export function loadGLTF(loader, url){
+  if((globalThis.VK_GLB_EXT||'.glb')!=='.json') return loader.loadAsync(url);
+  return fetch(url).then(r=>r.json()).then(j=>{ const bin=atob(j.b); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return loader.parseAsync(u8.buffer,''); });
+}
 /** Varlıkları bir kez yükle */
 export function loadPeople(base='./assets/3d/', onProgress){
   if(LIBP) return LIBP;
   const L=new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
-  const files=['chars/male_body.glb','chars/male_outfit.glb','chars/female_body.glb','chars/female_outfit.glb','anim/ual1.glb','anim/ual2.glb'];
+  const X=globalThis.VK_GLB_EXT||'.glb';
+  const files=['chars/male_body','chars/male_outfit','chars/female_body','chars/female_outfit','anim/ual1','anim/ual2'].map(f=>f+X);
   let done=0;
-  LIBP=Promise.all(files.map(f=>L.loadAsync(base+f).then(g=>{ done++; onProgress&&onProgress(done/files.length); return g; }))).then(out=>{
+  LIBP=Promise.all(files.map(f=>loadGLTF(L,base+f).then(g=>{ done++; onProgress&&onProgress(done/files.length); return g; }))).then(out=>{
     const clips=new Map(); for(const g of [out[4],out[5]]) for(const c of g.animations) clips.set(c.name, c);
     LIB={ maleBody:out[0], maleOutfit:out[1], femBody:out[2], femOutfit:out[3], clips }; return LIB; });
   return LIBP;
