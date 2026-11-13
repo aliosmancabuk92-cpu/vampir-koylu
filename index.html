@@ -168,7 +168,7 @@ import { hostStart, hostHandle as mpHandle, newGameFields, createMultiUI, unlock
 const SUPABASE_URL = 'https://jqbokjkswdkhvdeegfbh.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Vpnzl1uasuRis03GAQJIpg_PldkwGIP';
 const MIN_PLAYERS = 4;
-const DEFAULTS = { discussionSec: 120, voteSec: 60 };
+const DEFAULTS = { discussionSec: 120, voteSec: 60, cast: 'mixed' };
 
 const ROLES = {
   vampir: { name:'Vampir', ic:'🧛', desc:'Her gece diğer vampirlerle birlikte bir köylüyü seçip öldürürsünüz. Gündüz kimliğinizi gizleyin. Köylü sayısı vampir sayısına eşitlenince kazanırsınız.' },
@@ -212,7 +212,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 /* ================== BAĞLANTI ================== */
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let channel=null;
-let me = { id: localStorage.getItem('vk_pid') || (()=>{const i=uid();localStorage.setItem('vk_pid',i);return i;})(), name: localStorage.getItem('vk_name')||'' };
+let me = { id: localStorage.getItem('vk_pid') || (()=>{const i=uid();localStorage.setItem('vk_pid',i);return i;})(), name: localStorage.getItem('vk_name')||'', gender: localStorage.getItem('vk_gender')==='f'?'f':'m' };
 let isHost=false;
 let S=null;            // oyun durumu (herkes için)
 let screen='mode';     // mode | solo | home | join | game
@@ -254,11 +254,12 @@ function hostHandle(a){
   const p = P(S,a.from);
   switch(a.type){
     case 'hello': case 'join': {
-      if(p){ p.connected=true; if(a.name) p.name=a.name; }
-      else if(S.phase==='lobby'){ S.players.push({id:a.from, name:a.name||'Oyuncu', alive:true, role:null, connected:true}); log(`${a.name} katıldı.`); }
+      if(p){ p.connected=true; if(a.name) p.name=a.name; if(a.gender&&S.phase==='lobby') p.gender=a.gender==='f'?'f':'m'; }
+      else if(S.phase==='lobby'){ S.players.push({id:a.from, name:a.name||'Oyuncu', gender:a.gender==='f'?'f':'m', alive:true, role:null, connected:true}); log(`${a.name} katıldı.`); }
       else { /* oyun ortasında yeni oyuncu: izleyici olarak eklenmez, sadece state gönder */ }
       break;
     }
+    case 'gender': { if(p && S.phase==='lobby') p.gender=a.g==='f'?'f':'m'; break; }
     case 'leave': { if(S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.from); else if(p) p.connected=false; break; }
     case 'kick': { if(a.from===S.hostId && S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.target); break; }
     case 'settings': { if(a.from===S.hostId && S.phase==='lobby') S.settings={...S.settings,...a.settings}; break; }
@@ -331,7 +332,7 @@ function renderHome(){
 function createRoom(){
   isHost=true; voice.set(true); keepAwake();
   const code=genCode(); S=newState(code);
-  S.players.push({id:me.id,name:me.name,alive:true,role:null,connected:true});
+  S.players.push({id:me.id,name:me.name,gender:me.gender,alive:true,role:null,connected:true});
   screen='game'; render();
   connect(code, ()=>broadcast());
 }
@@ -354,7 +355,7 @@ function renderJoin(){
     isHost=false; voice.set(false); keepAwake();
     $('#bGo').disabled=true; $('#bGo').textContent='Bağlanıyor…';
     connect(code, ()=>{
-      send({type:'join', name:me.name});
+      send({type:'join', name:me.name, gender:me.gender});
       joinTimeout=setTimeout(()=>{ toast('Oda bulunamadı. Kodu kontrol et.'); screen='join'; render(); }, 6000);
     });
   };
@@ -387,10 +388,19 @@ function viewLobby(){
     <div class="codebox"><div style="font-size:12px;color:var(--muted);font-weight:800;letter-spacing:2px">ODA KODU</div><div class="c">${S.code}</div><div style="font-size:13px;color:var(--muted)">Arkadaşların bu kodla katılsın</div></div>
     <div class="card">
       <div class="row"><h2>Oyuncular</h2><span style="text-align:right;color:var(--muted);font-weight:800">${n} kişi</span></div>
-      <ul class="plist">${S.players.map(p=>`<li class="${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id===S.hostId?' <span class="tag">· anlatıcı</span>':''}</span>${isHost&&p.id!==me.id?`<button class="btn sm sec" data-kick="${p.id}">Çıkar</button>`:`<span class="dot ${p.connected?'':'off'}"></span>`}</li>`).join('')}</ul>
+      <ul class="plist">${S.players.map(p=>`<li class="${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)} <span title="karakter">${(S.settings.cast||'mixed')==='male'||p.gender!=='f'?'👨':'👩'}</span>${p.id===S.hostId?' <span class="tag">· anlatıcı</span>':''}</span>${isHost&&p.id!==me.id?`<button class="btn sm sec" data-kick="${p.id}">Çıkar</button>`:`<span class="dot ${p.connected?'':'off'}"></span>`}</li>`).join('')}</ul>
       <p class="note">${n>=MIN_PLAYERS?`${n} kişi: <b>${rc.vampir} vampir</b>, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`:`Başlamak için en az ${MIN_PLAYERS} kişi gerekli (${MIN_PLAYERS-n} kişi daha).`}</p>
     </div>
+    <div class="card">
+      <h2 style="font-size:16px">Karakterin</h2>
+      ${(S.settings.cast||'mixed')==='male'?`<p class="note" style="text-align:left">Anlatıcı bu odada <b>hepsi erkek</b> seçti: bütün karakterler kasketli, bıyıklı köylüler.</p>`:`<div class="row" style="margin-top:8px"><button class="btn sm ${(P(S,me.id)?.gender||me.gender)!=='f'?'gold':'sec'}" data-g="m">👨 Erkek</button><button class="btn sm ${(P(S,me.id)?.gender||me.gender)==='f'?'gold':'sec'}" data-g="f">👩 Kadın</button></div>`}
+    </div>
     ${isHost?`
+    <div class="card">
+      <h2 style="font-size:16px">Köylüler</h2>
+      <div class="row" style="margin-top:8px"><button class="btn sm ${(S.settings.cast||'mixed')==='male'?'gold':'sec'}" data-cast="male">👨 Hepsi erkek</button><button class="btn sm ${(S.settings.cast||'mixed')!=='male'?'gold':'sec'}" data-cast="mixed">👫 Karışık</button></div>
+      <p class="note">Karışık: herkes kendi karakterini (erkek/kadın) seçer.</p>
+    </div>
     <div class="card">
       <h2 style="font-size:16px">Süreler</h2>
       <div class="row" style="margin-top:8px">
@@ -409,6 +419,8 @@ function bindGame(mine){
   q('#bStart')&&(q('#bStart').onclick=()=>{ unlockAudio(); saveSettings(); send({type:'start'}); });
   q('#bLeave')&&(q('#bLeave').onclick=()=>leaveRoom());
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>send({type:'kick',target:b.dataset.kick}));
+  document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{ me.gender=b.dataset.g; localStorage.setItem('vk_gender',me.gender); send({type:'gender',g:me.gender}); });
+  document.querySelectorAll('[data-cast]').forEach(b=>b.onclick=()=>send({type:'settings',settings:{cast:b.dataset.cast}}));
 }
 /* ================== PWA ================== */
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.hostname)){
