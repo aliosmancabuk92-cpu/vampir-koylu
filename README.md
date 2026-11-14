@@ -14,7 +14,8 @@ Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir
 - `src/world/director.js` — oyun olaylarını 3B sahnelere çeviren yönetmen (toplanma, eve dağılma, evden sürükleme, savunma çekimleri, asma, tekme, kazık, gece baskını, köy hafızası)
 - `src/stage3d.js` / `src/stage-prefs.js` — 3B katman (tembel yüklenir) ve tercihler (3B/2B, kalite)
 - `src/voice.js` — önceden kaydedilmiş replikleri karakter ses rengiyle çalar; kayıt yoksa cihaz sesine düşer
-- `tools/voice-collect.mjs` → `tools/voice-gen.py` → `tools/voice-female.sh` — tüm replikleri topla, Piper ile seslendir, kadın sesini türet
+- `tools/voice-collect.mjs` → (Chatterbox, `/home/claude/tts/gen_batch.py`) → `tools/voice-install.py` → `tools/voice-female.sh` — tüm replikleri topla, doğal Türkçe sesle seslendir, oyuna kur, kadın sesini türet (eski yol: `tools/voice-gen.py` Piper)
+- `/home/claude/mocap/build_clips.py` — CMU hareket verisini iskeletimize aktarıp `www/assets/3d/anim/mocap.glb` + `mocap_meta.json` üretir
 
 Sesleri yeniden üretmek (replik eklenince):
 ```bash
@@ -58,4 +59,5 @@ Köylü, Vampir (4-7 kişi: 1, 8-11: 2, 12+: 3), Doktor, Kâhin. En az 4 oyuncu.
 ## Lisanslar (3B ve ses)
 - Karakterler ve animasyonlar: Quaternius (CC0) — Universal Animation Library, Superhero gövdeleri, köylü kıyafetleri
 - Dokular ve sahne objeleri: Poly Haven (CC0)
-- Seslendirme: Piper TTS, `tr_TR-dfki-medium` sesi (**CC BY-NC-SA — ticari değil**). Mağazaya çıkmadan önce ticari lisanslı bir sesle yeniden üretilmeli.
+- Seslendirme: Chatterbox Multilingual (MIT). Referans tını Piper `tr_TR-dfki-medium` (**CC BY-NC-SA**) çıktısından alındı; mağaza yayınından önce kendi kaydımızla yeniden üretilmeli.
+- Gerçek insan hareketleri: CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu, NSF EIA-0196217) — ticari kullanıma açık, veri ayrıca satılamaz.

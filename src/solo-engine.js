@@ -593,7 +593,7 @@ export class SoloGame {
     } else {
       this.sfx('festive');
       const sp=this.speaker(); if(sp) this.say(sp, this.pk(LN.END_VILLAGE)); else this.narr(this.pk(LN.END_VILLAGE));
-      this.narr('Son vampir de kazığa oturtuldu. Köy kurtuldu!');
+      this.narr('Son vampirin de kalbine kazık çakıldı. Köy kurtuldu!');
     }
     this.result=this._score();
     return true;
@@ -619,7 +619,7 @@ export class SoloGame {
     switch(o.type){
       case 'win': objOk=won && s.humanDiedDay===null; objText='Hayatta kal ve kazan'; break;
       case 'winByDay': objOk=won && s.days<=o.n; objText=`${o.n}. günden önce kazan`; break;
-      case 'vampHangedByDay': objOk=won && s.vampHangedDay!==null && s.vampHangedDay<=o.n; objText=`Vampiri ${o.n}. günden önce kazığa oturt`; break;
+      case 'vampHangedByDay': objOk=won && s.vampHangedDay!==null && s.vampHangedDay<=o.n; objText=`Vampire ${o.n}. günden önce kazık çak`; break;
       case 'saves': objOk=won && s.saves>=o.n; objText=`En az ${o.n} kişiyi kurtar`; break;
       case 'maxVotes': objOk=won && s.votesReceived<=o.n; objText=`En fazla ${o.n} oy al`; break;
       case 'noWrongVote': objOk=won && s.wrongVotes===0; objText='Hiç yanlış kişiye AS deme'; break;

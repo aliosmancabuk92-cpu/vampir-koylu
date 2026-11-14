@@ -314,15 +314,25 @@ export async function createWorld(container, { base='./assets/3d/', quality=dete
   function setRope(i, lenOrNull){ const r=GAL.ropes[i], n=GAL.noose[i]; if(!r) return; const L=lenOrNull==null?1.55:lenOrNull; r.scale.y=L; n.position.set(GAL.hangX[i],GAL.beamY-L-0.1,GAL.z); n.rotation.set(Math.PI/2,0,0); r.visible=n.visible=true; }
   [0,1,2].forEach(i=>setRope(i,null));
 
-  /* ---------- kazıklar ---------- */
-  const STK={ group:new THREE.Group(), x:[-1.45,0,1.45], top:3.15, blood:[] };
+  /* ---------- kazık yeri: raf + yerde yatırma noktaları ---------- */
+  const STK={ group:new THREE.Group(), x:[-1.45,0,1.45], spotZ:0.75, top:3.15, blood:[], stakes:[], pools:[] };
   { const g=STK.group; g.position.set(LAYOUT.STAKES.x,0,LAYOUT.STAKES.z); g.rotation.y=LAYOUT.STAKES.rot; const st=new THREE.Group();
-    for(const x of STK.x){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.13,STK.top-0.3,10), M.bark); pole.position.set(x,(STK.top-0.3)/2,0); st.add(pole);
-      const tip=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.42,10), M.bark); tip.position.set(x,STK.top-0.3+0.21,0); st.add(tip);
-      const mound=new THREE.Mesh(new THREE.SphereGeometry(0.55,12,6,0,Math.PI*2,0,Math.PI/2), M.mud); mound.scale.y=0.35; mound.position.set(x,0,0); st.add(mound);
-      for(let k=0;k<5;k++){ const s=new THREE.Mesh(new THREE.DodecahedronGeometry(0.1+Math.random()*0.06,0), M.stone2); s.position.set(x+Math.cos(k*1.3)*0.5,0.05,Math.sin(k*1.3)*0.45); st.add(s); }
-      const bl=new THREE.Mesh(new THREE.CylinderGeometry(0.083,0.105,1.1,10,1,true), M.blood); bl.position.set(x,STK.top-0.95,0); bl.visible=false; g.add(bl); STK.blood.push(bl); }
-    st.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); g.add(st); bakeStatic(st); scene.add(g); }
+    // A-ayaklı raf ve yaslanmış sivri kazıklar
+    for(const x of [-1.9,1.9]){ for(const d of [-1,1]){ const leg=new THREE.Mesh(uvBox(0.1,1.25,0.1,1), M.beam); leg.position.set(x,0.58,-1.05+d*0.22); leg.rotation.x=d*0.36; st.add(leg); } }
+    const bar=new THREE.Mesh(uvBox(4.1,0.1,0.1,1), M.beam); bar.position.set(0,1.12,-1.05); st.add(bar);
+    for(let i=0;i<9;i++){ const x=-1.65+i*0.41+(i%2?0.05:-0.04); const L=1.45+((i*37)%7)/30; const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.06,L-0.22,8), M.bark);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.22,8), M.bark); tip.position.y=(L-0.22)/2+0.11; const sg=new THREE.Group(); sg.add(pole,tip);
+      sg.position.set(x,L/2-0.08,-1.32+((i*13)%5)/40); sg.rotation.x=0.24; sg.rotation.z=((i*29)%9-4)/60; st.add(sg); }
+    for(const x of STK.x){ for(let k=0;k<4;k++){ const s=new THREE.Mesh(new THREE.DodecahedronGeometry(0.07+((k*7)%5)/60,0), M.stone2); s.position.set(x+Math.cos(k*1.7+x)*0.75,0.03,STK.spotZ+Math.sin(k*1.7+x)*0.9); st.add(s); } }
+    st.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); g.add(st); bakeStatic(st);
+    // kullanılacak kazıklar (göğse saplanan) ve kan gölleri
+    const poolMat=new THREE.MeshStandardMaterial({ color:0x2a0204, roughness:.18, metalness:.05, transparent:true, opacity:.92, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 });
+    for(const x of STK.x){ const sg=new THREE.Group(); const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.045,0.82,8), M.bark); pole.position.y=0.41+0.09; const tip=new THREE.Mesh(new THREE.ConeGeometry(0.035,0.18,8), M.bark); tip.rotation.x=Math.PI; tip.position.y=0.09;
+      const bl=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.036,0.32,8,1,true), M.blood); bl.position.y=0.16; sg.add(pole,tip,bl); sg.traverse(o=>{ if(o.isMesh) o.castShadow=true; }); sg.visible=false; scene.add(sg); STK.stakes.push(sg); STK.blood.push(bl);
+      const pool=new THREE.Mesh(new THREE.CircleGeometry(0.5,24), poolMat); pool.rotation.x=-Math.PI/2; pool.position.set(x,0.012,STK.spotZ); pool.visible=false; g.add(pool); STK.pools.push(pool); }
+    scene.add(g); }
+  /** k numaralı yatırma noktası (dünya): {x,z,yaw} — baş rafa, ayaklar meydana doğru */
+  STK.spot=(k)=>{ const p=STK.group.localToWorld(new THREE.Vector3(STK.x[k]??0,0,STK.spotZ)); return { x:p.x, z:p.z, yaw:LAYOUT.STAKES.rot }; };
 
   /* ---------- meşaleler ---------- */
   const torches=[]; const TORCH_POS=[[-4.3,-8.4],[4.3,-8.4],[-8.9,2.6],[8.9,2.6],[-6.6,7.6],[6.6,7.6]];
@@ -443,7 +453,7 @@ export async function createWorld(container, { base='./assets/3d/', quality=dete
   function houseOf(pid){ return village.byId.get(pid)||null; }
   function setMourning(pid, on, ribbon=true){ const h=houseOf(pid); if(!h) return; h.mourning=on?1:0; h.H.setMourning(on?1:0); smokeOn(h.idx,!on);
     if(on && ribbon && !h.ribbon){ const rb=ribbonProto.clone(); rb.position.copy(h.H.ribbonAt); h.group.add(rb); h.ribbon=rb; } if(!on && h.ribbon){ h.group.remove(h.ribbon); h.ribbon=null; } applyLights(); }
-  function openDoor(pid, open=true){ const h=houseOf(pid); if(h) h.doorTarget=open?1:0; }
+  function openDoor(pid, open=true, burst=false){ const h=houseOf(pid); if(!h) return; h.doorTarget=open?1:0; if(burst){ h.doorSpring=true; h.doorVel=open?14:-6; } }
 
   /* ---------- ışık evresi geçişleri ---------- */
   let phaseName='night'; const cur=phaseState(PHASES.night); let from=phaseState(PHASES.night), to=phaseState(PHASES.night); let pt=1, pdur=1;
@@ -530,28 +540,30 @@ export async function createWorld(container, { base='./assets/3d/', quality=dete
   const ro=('ResizeObserver' in window)? new ResizeObserver(resize):null; ro?ro.observe(container):window.addEventListener('resize',resize); resize();
 
   /* ---------- döngü ---------- */
-  const actors=new Set(); const tickers=new Set();
+  const actors=new Set(); const tickers=new Set(); const TS={ v:1 };
   const clock=new THREE.Clock(); let running=true, paused=false; let fpsAcc=0, fpsN=0, slowFor=0;
   function frame(){
     if(!running) return; requestAnimationFrame(frame);
     if(paused || document.hidden) { clock.getDelta(); return; }
-    const dt=Math.min(clock.getDelta(),maxDt), t=clock.elapsedTime;
+    const dtr=Math.min(clock.getDelta(),maxDt), t=clock.elapsedTime; const dt=dtr*TS.v;
     if(pt<1){ pt=Math.min(1,pt+dt/pdur); lerpPhase(cur,from,to,smooth(pt)); applyPhase(); if(pt>=1) updateEnv(); }
     skyU.uTime.value=t; partU.uTime.value=t; treeU.uTime.value=t;
     for(const tc of torches){ if(!tc.g.visible) continue; const f=0.78+0.22*Math.sin(t*12.7+tc.seed)*Math.sin(t*7.3+tc.seed*2)+0.07*Math.sin(t*29+tc.seed); const k=cur.torch;
       if(tc.L) tc.L.intensity=30*f*k; tc.f1.scale.set(0.42*(0.9+0.15*f),0.78*(0.8+0.3*f),1); tc.f2.scale.set(0.3,0.55*(0.85+0.3*Math.sin(t*17+tc.seed)),1); tc.f1.material.opacity=k; tc.f2.material.opacity=k*.9; tc.glow.material.opacity=(.35+.2*f)*k; }
-    for(const h of village.houses){ if(Math.abs(h.doorOpen-h.doorTarget)>0.001){ h.doorOpen+= (h.doorTarget-h.doorOpen)*Math.min(1,dt*5); h.H.doorPivot.rotation.y=-1.45*h.doorOpen; } }
+    for(const h of village.houses){
+      if(h.doorSpring){ h.doorVel+=((h.doorTarget-h.doorOpen)*70-h.doorVel*6)*dt; h.doorOpen+=h.doorVel*dt; if(h.doorOpen>1.1){ h.doorOpen=1.1; h.doorVel=-h.doorVel*0.4; } if(Math.abs(h.doorVel)<0.02 && Math.abs(h.doorTarget-h.doorOpen)<0.004) h.doorSpring=false; h.H.doorPivot.rotation.y=-1.45*h.doorOpen; }
+      else if(Math.abs(h.doorOpen-h.doorTarget)>0.001){ h.doorOpen+= (h.doorTarget-h.doorOpen)*Math.min(1,dt*5); h.H.doorPivot.rotation.y=-1.45*h.doorOpen; } }
     for(const a of actors) a.update(dt,t);
     for(const f of tickers) f(dt,t);
     for(const r of rings.values()){ const p=r.userData.getPos(_v); if(p){ r.visible=true; r.position.set(p.x,0.06,p.z); const s=r.userData.scale*(1+0.08*Math.sin(t*5)); r.scale.set(s,1,s); r.material.opacity=.55+.3*Math.sin(t*5); } else r.visible=false; }
-    updateCamera(dt,t);
+    updateCamera(dtr,t);
     sky.position.copy(camera.position);
     // gölge kamerası kameranın baktığı yeri takip etsin
     _t.copy(CAM.tgt); _t.y=0; _t.clampLength(0,14); sun.target.position.copy(_t); sun.position.copy(_t).addScaledVector(cur.sunDir,SUN_DIST);
     if(composer) composer.render(dt); else renderer.render(scene,camera);
     updateLabels();
     // yavaşsa kaliteyi düşür
-    fpsAcc+=dt; fpsN++; if(fpsAcc>2){ const fps=fpsN/fpsAcc; fpsAcc=0; fpsN=0; if(fps<24){ slowFor++; if(slowFor>=2) degrade(); } else slowFor=0; }
+    fpsAcc+=dtr; fpsN++; if(fpsAcc>2){ const fps=fpsN/fpsAcc; fpsAcc=0; fpsN=0; if(fps<24){ slowFor++; if(slowFor>=2) degrade(); } else slowFor=0; }
   }
   function degrade(){ slowFor=0; if(composer){ composer=null; Q.bloom=false; return; } const pr=renderer.getPixelRatio(); if(pr>1.01){ renderer.setPixelRatio(Math.max(1,pr-0.5)); resize(); return; } if(renderer.shadowMap.enabled && Q.shadow>1024){ Q.shadow=1024; sun.shadow.mapSize.set(1024,1024); sun.shadow.map?.dispose(); sun.shadow.map=null; } }
 
@@ -569,6 +581,7 @@ export async function createWorld(container, { base='./assets/3d/', quality=dete
     onPick(cb, extra){ pickCb=cb; if(extra) pickables=extra; },
     addActor(a){ actors.add(a); scene.add(a.holder); }, removeActor(a){ actors.delete(a); scene.remove(a.holder); }, actors,
     tick(f){ tickers.add(f); return ()=>tickers.delete(f); },
+    setTimeScale(v){ TS.v=Math.max(0.02,v); }, get timeScale(){ return TS.v; },
     pause(v=true){ paused=v; }, resize,
     dispose(){ running=false; ro&&ro.disconnect(); clearVillage(); renderer.dispose(); envRT&&envRT.dispose(); pmrem&&pmrem.dispose(); try{ renderer.forceContextLoss(); }catch(e){} canvas.remove(); overlay.remove(); },
     snapshot(){ return canvas.toDataURL('image/jpeg',0.9); },

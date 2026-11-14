@@ -66,7 +66,7 @@ export const OPENING = [
   { who:1, text:'Olmaz la! Burda doğduk, burda ölürüz! Kaçmak yok!' },
   { who:5, text:{h:'Kaçsak da peşimizden gelir o, ayağına kadar yolu olan bu it.', s:'Kaçsak da peşimizden gelir o. Kurtuluş yok kaçmakla.'} },
   { who:0, text:'Herkes toplanmışken aramızda konuşalım. Her gün birini asmaya karar verelim.' },
-  { who:0, text:'Vampirse inkâr etse bile astığımızda ÖLMEZ. O zaman da bırakmayız, hemen yandaki kazığa oturturuz!' },
+  { who:0, text:'Vampirse inkâr etse bile astığımızda ÖLMEZ. O zaman da bırakmayız, kalbine kazığı çakarız!' },
   { who:0, text:'Ama köylüyse… oracıkta ölür. Allah rahmet eylesin.' },
   { who:2, text:'Aman yarabbi… ya yanlış adamı asarsak?' },
   { who:0, text:'Bulamazsak her gece o vampircik birimizin kanını emer, nüfustan birini düşürür. Bulursak kalanlar yaşar, köyde hayat eskisi gibi devam eder.' },
@@ -148,19 +148,20 @@ export const KICK = [
   { h:'Al sana bi tekme! Götüne götüne!', s:'Al sana bi tekme!' },
   'Bu da benden! Emdiğin kanlar burnundan gelsin!',
   'Sıra bende! Hooop!',
-  'Kazığa oturtacağız seni, ama YAĞSIZ!',
+  'Kazık geliyo kazık! Hazırla göğsünü!',
 ];
 export const IMPALE = [
+  'Tutun kollarını, bırakmayın!',
+  'Bastır la, bastır! Tam kalbine!',
+  'Kıpırdama, kazık kayıyo!',
   'Gıpraşma la, fazladan delik açılmasın!',
   'Oğlum süzgeç olursun bak, dur!',
-  'Tutun ayaklarından! Bırakmayın!',
   'Bağır bağır, kimse duymaz la!',
-  'Rahat otur, bu senin son tahtın!',
 ];
-export const SCREAMS = ['AAAAH!','HUAAAAA!','ANAAAAM!','GIIIIIH!','AYYYYY!','UAAAH… OFF!','YAPMAYIIIN!','HIIIIIK!'];
+export const SCREAMS = ['AAAAAAA AAAAAAAAA!','AAAAAAAAA… AAAAAAA!','AAAAAAA AAAAAAAAAAA!'];
 export const AFTER_IMPALE = [
   'Oh be, bi tanesi gitti. Hadi herkes evine!',
-  'Kazıkta kalsın, ibret olsun!',
+  'Kazık göğsünde kalsın, ibret olsun!',
   'Geceyi bekleyelim, bakalım daha var mı?',
 ];
 export const VAMPIRE_HANGED_LINES = [ /* vampir kendi */
@@ -181,7 +182,7 @@ export const DAWN_NONE = ['Sabah oldu. Bu gece kimse ölmedi… tuhaf.','Sessiz 
 /* ---------------- BİTİŞ ---------------- */
 export const END_VAMP_SOLO = [{ h:'Kanınızı emerin, hepinizi severin heh heh heh! Köy benim artık!', s:'Kanınızı emerim, hepinizi severim heh heh! Köy benim artık!' }];
 export const END_VAMP_MULTI = [{ h:'Koyduk mu la, koyduk mu? Heh heh heh! Sonuncusu da gitti!', s:'Bitirdik mi la, bitirdik mi? Heh heh! Sonuncusu da gitti!' }];
-export const END_VILLAGE = ['Hepsini kazığa oturttuk! Köyde hayat eskisi gibi!','Davul çalsın, zurna ötsün! Köy kurtuldu!'];
+export const END_VILLAGE = ['Hepsinin kalbine kazık çaktık! Köyde hayat eskisi gibi!','Davul çalsın, zurna ötsün! Köy kurtuldu!'];
 
 /* ---------------- GÜNDÜZ TARTIŞMA (şiveli) ---------------- */
 export const ACCUSE = [

@@ -257,7 +257,7 @@ function checkWin(S){
     const multi=S.players.filter(p=>p.role==='vampir').length>1;
     say(S,vamps[0],LN.pick(multi?LN.END_VAMP_MULTI:LN.END_VAMP_SOLO));
     narr(S,'Vampirler köyü ele geçirdi!');
-  } else { sfx(S,'festive'); const sp=speaker(S); if(sp) say(S,sp,LN.pick(LN.END_VILLAGE)); narr(S,'Son vampir de kazığa oturtuldu. Köy kurtuldu!'); }
+  } else { sfx(S,'festive'); const sp=speaker(S); if(sp) say(S,sp,LN.pick(LN.END_VILLAGE)); narr(S,'Son vampirin de kalbine kazık çakıldı. Köy kurtuldu!'); }
   vstate(S);
   return true;
 }
@@ -378,7 +378,7 @@ export function createMultiUI({ app, esc, voice, send, toast, isHost, meId, onLe
         break; }
       case 'verdict': {
         const lv=S.lastVote||{};
-        html=`<div class="card panelc" style="text-align:center">${lv.hanged?(lv.role==='vampir'?`<div class="big" style="color:var(--blood2)">🧛 VAMPİR ÇIKTI!</div><div class="note">${esc(lv.name)} kazığa oturtuldu.</div>`:`<div class="big">🪢 ${esc(lv.name)}</div><div class="note">${ROLE_INFO[lv.role].ic} ${ROLE_INFO[lv.role].name} idi. (${lv.hang} AS / ${lv.rel} BIRAK)</div>`):`<div class="big">🕊️ Bırakıldı</div><div class="note">${esc(lv.name||'')} bugün kurtuldu (${lv.hang} AS / ${lv.rel} BIRAK).</div>`}
+        html=`<div class="card panelc" style="text-align:center">${lv.hanged?(lv.role==='vampir'?`<div class="big" style="color:var(--blood2)">🧛 VAMPİR ÇIKTI!</div><div class="note">${esc(lv.name)} kalbine kazık çakıldı.</div>`:`<div class="big">🪢 ${esc(lv.name)}</div><div class="note">${ROLE_INFO[lv.role].ic} ${ROLE_INFO[lv.role].name} idi. (${lv.hang} AS / ${lv.rel} BIRAK)</div>`):`<div class="big">🕊️ Bırakıldı</div><div class="note">${esc(lv.name||'')} bugün kurtuldu (${lv.hang} AS / ${lv.rel} BIRAK).</div>`}
           ${hostBtn('🌙 Herkes evine, gece olsun','')}${waitNote()}</div>`; break; }
       case 'night': {
         const c=m&&m.alive?nightCands(m):null;

@@ -1,0 +1,20 @@
+import * as THREE from 'three';
+import { createWorld, WORLD_CSS, LAYOUT } from '../../src/world/world.js';
+import { loadPeople, createVillager, clipInfo, clipStart, MALE_KEYS } from '../../src/world/people.js';
+const st=document.createElement('style'); st.textContent=WORLD_CSS+`html,body{margin:0;height:100%;background:#000} #v{position:fixed;inset:0}`; document.head.appendChild(st);
+const P=new URLSearchParams(location.search);
+window.ready=false; window.errs=[];
+window.addEventListener('error',e=>window.errs.push(String(e.message)));
+const V3=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
+(async()=>{ try{
+  const base='/www/assets/3d/';
+  const W=await createWorld(document.getElementById('v'),{ base, quality:P.get('q')||'medium', debug:true });
+  await loadPeople(base);
+  const players=[...Array(8)].map((_,i)=>({ id:'p'+i, name:'K'+i }));
+  W.setupVillage(players);
+  const keys=['demirci','player','bekci','delikanli','dayioglu','emmi'];
+  const vs=keys.map(k=>{ const V=createVillager(k); W.addActor(V); V.place(0,-50,0); return V; });
+  W.setPhase('day',0);
+  Object.assign(window,{ W, vs, THREE, V3, clipInfo, clipStart, LAYOUT });
+  window.ready=true;
+}catch(e){ window.errs.push(String(e&&e.stack||e)); } })();

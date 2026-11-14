@@ -11,3 +11,6 @@ test/w3d/bundle.js
 test/w3d/game-bundle.js
 proto/
 artifact/
+test/w3d/mc-bundle.js
+test/w3d/scene-bundle.js
+www/assets/voice/.cb.json

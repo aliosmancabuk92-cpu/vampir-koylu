@@ -22,23 +22,23 @@ function clip(key){
 /** Sıradaki repliklerin seslerini önceden indir */
 const isFem=(e)=>e.t==='say' && /^kadin/.test(e.arch||'');
 const pathOf=(e,k)=>(isFem(e)?'f/':'')+k;
-export function prefetchLines(events){ if(!manifest) return; let n=0; for(const e of events){ if(e.t!=='say'&&e.t!=='narr') continue; const k=voiceKey(e.voice||e.text); if(manifest[k]) clip(pathOf(e,k)); if(++n>=4) break; } }
+export function prefetchLines(events){ if(!manifest) return; let n=0; for(const e of events){ if(e.t!=='say'&&e.t!=='narr') continue; const k=voiceKey(e.voice||e.text); if(manifest[k]) clip(pathOf(e,k)); if(++n>=6) break; } }
 
 /* karakter ses renkleri */
 const FX={
-  narr:     { rate:.95, low:3,  high:-1, rev:.30 },
-  muhtar:   { rate:.93, low:3,  high:0,  rev:.12 },
+  narr:     { rate:.97, low:3,  high:-1, rev:.30 },
+  muhtar:   { rate:.96, low:3,  high:0,  rev:.12 },
   dayioglu: { rate:1.0, low:1,  high:0,  rev:.12 },
-  emmi:     { rate:.91, low:1,  high:-1, rev:.14 },
-  delikanli:{ rate:1.07,low:-1, high:2,  rev:.10 },
+  emmi:     { rate:.95, low:1,  high:-1, rev:.14 },
+  delikanli:{ rate:1.05,low:-1, high:2,  rev:.10 },
   memis:    { rate:.97, low:2,  high:0,  rev:.12 },
-  dede:     { rate:.86, low:1,  high:-2, rev:.16 },
+  dede:     { rate:.92, low:1,  high:-2, rev:.16 },
   coban:    { rate:1.03,low:0,  high:1,  rev:.14 },
   bakkal:   { rate:.95, low:2,  high:0,  rev:.12 },
   kahveci:  { rate:1.0, low:1,  high:1,  rev:.12 },
-  bekci:    { rate:.92, low:3,  high:-1, rev:.14 },
-  demirci:  { rate:.87, low:5,  high:-1, rev:.12 },
-  deli:     { rate:1.12,low:-1, high:3,  rev:.10 },
+  bekci:    { rate:.96, low:3,  high:-1, rev:.14 },
+  demirci:  { rate:.92, low:5,  high:-1, rev:.12 },
+  deli:     { rate:1.08,low:-1, high:3,  rev:.10 },
   player:   { rate:1.02,low:1,  high:0,  rev:.10 },
   kadin1:   { rate:1.0, low:-2, high:1,  rev:.12 },
   kadin2:   { rate:1.04,low:-2, high:2,  rev:.12 },
@@ -49,6 +49,11 @@ function reverb(ctx){ if(rev) return revIn; const len=Math.floor(ctx.sampleRate*
   for(let c=0;c<2;c++){ const d=ir.getChannelData(c); for(let i=0;i<len;i++){ const t=i/len; d[i]=(Math.random()*2-1)*Math.pow(1-t,3.2)*(i<ctx.sampleRate*0.012?0:1); } }
   rev=ctx.createConvolver(); rev.buffer=ir; revIn=ctx.createGain(); revIn.connect(rev); rev.connect(audioOut()); return revIn; }
 
+/* kaydın başındaki / sonundaki sessizliği bul (akıcı geçiş için) */
+const trims=new WeakMap();
+function trimInfo(b){ let r=trims.get(b); if(r) return r; const d=b.getChannelData(0), n=d.length, th=0.018; let a=0, z=n-1;
+  while(a<n && Math.abs(d[a])<th) a++; while(z>a && Math.abs(d[z])<th) z--;
+  r={ lead:Math.max(0,a/b.sampleRate-0.025), dur:Math.max(0.2,(z-a)/b.sampleRate+0.05) }; trims.set(b,r); return r; }
 function estimate(t){ const n=String(t||'').replace(/[….!?,]/g,'').trim().length; return Math.min(6000, 700+n*60); }
 
 /**
@@ -69,15 +74,20 @@ export function createSpeaker(voice){
     if(skipping()) return;
     if(!buf) return deviceTTS(e,text,{ skipping, wait, hold });
     const fx=FX[e.t==='narr'?'narr':(e.arch||'player')]||FX.player; const scream=e.kind==='scream';
-    const src=ctx.createBufferSource(); src.buffer=buf; src.playbackRate.value=fx.rate*(scream?1.18:1)*(0.985+Math.random()*0.03);
+    const src=ctx.createBufferSource(); src.buffer=buf; src.playbackRate.value=fx.rate*(scream?1.04:1)*(0.99+Math.random()*0.02);
     const lo=ctx.createBiquadFilter(); lo.type='lowshelf'; lo.frequency.value=220; lo.gain.value=fx.low;
     const hi=ctx.createBiquadFilter(); hi.type='highshelf'; hi.frequency.value=3200; hi.gain.value=fx.high;
     const g=ctx.createGain(); g.gain.value=scream?1.0:0.95; const wet=ctx.createGain(); wet.gain.value=fx.rev;
     src.connect(lo); lo.connect(hi); hi.connect(g); g.connect(audioOut()); hi.connect(wet); wet.connect(reverb(ctx));
-    return new Promise(res=>{ let done=false; let release=()=>{};
-      const fin=()=>{ if(done) return; done=true; clearTimeout(t); try{ src.stop(); }catch(_){} release(); setTimeout(()=>{ try{ src.disconnect(); wet.disconnect(); }catch(_){} },400); res(); };
-      release=hold?hold(fin):()=>{}; src.onended=fin; const t=setTimeout(fin, buf.duration*1000/src.playbackRate.value+600);
-      try{ src.start(); }catch(_){ fin(); } });
+    const tr=trimInfo(buf); const rate=src.playbackRate.value;
+    return new Promise(res=>{ let done=false, ended=false; let release=()=>{};
+      // söz, konuşma bitince (sondaki sessizliği beklemeden) çözülür; ses kendi bitince temizlenir
+      const cleanup=()=>{ if(ended) return; ended=true; try{ src.disconnect(); wet.disconnect(); }catch(_){} };
+      const fin=(cut)=>{ if(done) return; done=true; clearTimeout(t); release(); if(cut===true){ try{ src.stop(); }catch(_){} setTimeout(cleanup,300); } res(); };
+      release=hold?hold(()=>fin(true)):()=>{}; src.onended=()=>{ fin(); setTimeout(cleanup,300); };
+      const t=setTimeout(()=>fin(), Math.max(250,(tr.dur/rate)*1000-60));
+      setTimeout(cleanup, (buf.duration/rate)*1000+800);
+      try{ src.start(0,tr.lead); }catch(_){ fin(true); } });
   };
 }
 function deviceTTS(e,text,{ skipping, wait, hold }){

@@ -1,7 +1,7 @@
 /* Vampir Köylü — service worker
    Kod (html/js/json): önce ağ (güncel sürüm hemen gelsin), yoksa önbellek.
    Ağır dosyalar (3B model, doku, ses): önce önbellek (çevrimdışı ve hızlı). */
-const VERSION = 'vk-v5';
+const VERSION = 'vk-v6';
 const SHELL = ['./', './index.html', './solo.js', './multi.js', './supabase.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/maskable-512.png'];
 
