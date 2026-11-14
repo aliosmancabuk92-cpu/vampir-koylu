@@ -327,7 +327,7 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
     if(c.state==='accused'){ c.V.fixed=true; c.V.mocap('scared',{ inPlace:true, lockYaw:true, loop:true, fade:.45 }); return; }
     c.V.fixed=false; c.V.idle(.45); }
   function react(sp,e){ if(skipping) return; const t=e.text||''; const others=inSquare().filter(o=>o!==sp && !o.V.fixed && !o.gest && !o.V.target); if(!others.length) return;
-    const funny=/hah|heh|keklik|göbe|götü|yağsız|süzgeç|gıdık|hıçkırık|horoz|ninem/i.test(t);
+    const funny=/hah|heh|keklik|göbe|götü|yağsız|süzgeç|gıdık|hıçkırık|horoz|ninem|hamuğa|godu|pabuc|kulağım/i.test(t);
     const n=funny?Math.min(3,others.length):(Math.random()<.55?1:0);
     for(let i=0;i<n;i++){ const o=others.splice(Math.floor(Math.random()*others.length),1)[0]; if(!o) break; const d=200+Math.random()*700;
       setTimeout(()=>{ if(o.V.fixed||o.gest||o.state!=='square') return;

@@ -86,8 +86,8 @@ export const SELECT_INTRO = [
   'Dün gece kim nerdeydi? Şüphelendiğinizin evini seçin!',
 ];
 export const DRAG = {
-  crowd: ['Gel la buraya! Meydana!','Çıkar şunu evden, hadi!','Tutun kolundan, kaçmasın!','Yürü la yürü, meydana!'],
-  accused: ['Bırakın beni la, ne yaptım ben?!','Ne oluyo, nereye götürüyonuz?!','Vallaha ben bi şey yapmadım!','Elinizi çekin, kendim yürürüm!'],
+  crowd: ['Gel la buraya! Meydana!','Çıkar şunu evden, hadi!','Tutun kolundan, kaçmasın!','Yürü la yürü, meydana!',{ h:'Sürüyün şunu, hamuğa goduuum! Ayak diretiyo bi de!', s:'Sürüyün şunu! Ayak diretiyo bi de!' }],
+  accused: ['Bırakın beni la, ne yaptım ben?!','Ne oluyo, nereye götürüyonuz?!','Vallaha ben bi şey yapmadım!','Elinizi çekin, kendim yürürüm!',{ h:'Yavaş la, hamına godumun! Pabucum çıktı pabucum!', s:'Yavaş la! Pabucum çıktı pabucum!' }],
 };
 
 /* ---------------- SAVUNMA ---------------- */
@@ -129,7 +129,7 @@ export const PLEAD = [
   'Son sözüm: beni asan vampire hizmet ediyo!',
 ];
 export const EXECUTIONER = [
-  { h:'Sus la, hamuha goduuum! Hükmün verildi!', s:'Sus la! Hükmün verildi!' },
+  { h:'Sus la, hamuğa goduuum! Hükmün verildi!', s:'Sus la! Hükmün verildi!' },
   { h:'Kes sesini, tabureyi tekmeliyom!', s:'Kes sesini, tabureyi tekmeliyom!' },
   { h:'Gurban olma, göbeğini kaşı! Hadi!', s:'Gurban olma, hadi!' },
 ];
@@ -143,17 +143,21 @@ export const HANG_VAMPIRE_SURPRISE = [
   'Lan… ölmedi! ÖLMEDİ LA! Bakın dişlerine!',
   'Vay keklüüük! Nasıl yakaladık ama seni!',
   'Vampir çıktı! Tutun, kaçmasın!',
+  { h:'Hamuğa goduuum… ip tutmuyo bunu la!', s:'Eyvah… ip tutmuyo bunu la!' },
 ];
 export const KICK = [
   { h:'Al sana bi tekme! Götüne götüne!', s:'Al sana bi tekme!' },
   'Bu da benden! Emdiğin kanlar burnundan gelsin!',
   'Sıra bende! Hooop!',
+  { h:'Al la, hamuğa goduuum! Bi de bu taraftan!', s:'Al la! Bi de bu taraftan!' },
   'Kazık geliyo kazık! Hazırla göğsünü!',
 ];
 export const IMPALE = [
   'Tutun kollarını, bırakmayın!',
   'Bastır la, bastır! Tam kalbine!',
   'Kıpırdama, kazık kayıyo!',
+  { h:'Bastır, hamuğa goduuum! Kalbine kalbine!', s:'Bastır la! Kalbine kalbine!' },
+  { h:'Bağır bağır! Götün yiyosa bi daha em kanımızı!', s:'Bağır bağır! Bi daha em bakalım kanımızı!' },
   'Gıpraşma la, fazladan delik açılmasın!',
   'Oğlum süzgeç olursun bak, dur!',
   'Bağır bağır, kimse duymaz la!',
@@ -162,11 +166,13 @@ export const SCREAMS = ['AAAAAAA AAAAAAAAA!','AAAAAAAAA… AAAAAAA!','AAAAAAA AA
 export const AFTER_IMPALE = [
   'Oh be, bi tanesi gitti. Hadi herkes evine!',
   'Kazık göğsünde kalsın, ibret olsun!',
+  { h:'Hamuğa goduuum, ne bağırdı be! Kulağımın zarı gitti!', s:'Ne bağırdı be! Kulağımın zarı gitti!' },
   'Geceyi bekleyelim, bakalım daha var mı?',
 ];
 export const VAMPIRE_HANGED_LINES = [ /* vampir kendi */
   'Heh heh… ip mi? Beni ip mi tutacak sandınız?',
   'Öldüm mü sandınız? Daha kanınızı emmedim!',
+  'Heh heh… gıdıklanıyom la! Biraz daha sıkın şu ipi!',
 ];
 
 /* ---------------- GECE / SABAH ---------------- */
