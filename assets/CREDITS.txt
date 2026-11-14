@@ -1,5 +1,11 @@
 Vampir Köylü — 3B varlıklar ve sesler
-Karakterler/animasyonlar: Quaternius (CC0) https://quaternius.com
-Dokular/objeler: Poly Haven (CC0) https://polyhaven.com
-Seslendirme: Piper TTS tr_TR-dfki-medium (CC BY-NC-SA 4.0) — yalnızca ticari olmayan kullanım
+Karakterler / temel animasyonlar: Quaternius (CC0) https://quaternius.com
+Gerçek insan hareketleri (sürükleme, tekme, kazık, gülme, jestler…): CMU Graphics Lab Motion Capture Database
+  "The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217."
+Dokular / objeler: Poly Haven (CC0) https://polyhaven.com
+Seslendirme: Chatterbox Multilingual TTS (Resemble AI, MIT lisansı) ile üretildi.
+  Referans ses tınısı Piper tr_TR-dfki-medium (CC BY-NC-SA 4.0) çıktısından alındığı için şimdilik yalnızca
+  ticari olmayan / özel test kullanımı içindir. Mağaza yayınından önce kendi kaydedilmiş referans sesimizle yeniden üretilmeli.
+Kalabalık sesleri (gülüşme, şaşırma, tezahürat): aynı yöntemle üretildi.
+Ses efektleri: Web Audio ile kodla sentezlendi.
 Three.js (MIT)
