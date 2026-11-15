@@ -7,7 +7,7 @@ const W=+(w||360), H=+(h||640), N=Math.round(+secs*+fps), EV=+(every||1);
 fs.mkdirSync(out,{recursive:true}); for(const f of fs.readdirSync(out)) if(f.endsWith('.jpg')) fs.unlinkSync(path.join(out,f));
 const b=await puppeteer.launch({ executablePath:'/usr/bin/google-chrome', headless:true, protocolTimeout:240000, args:['--no-sandbox','--use-angle=swiftshader','--autoplay-policy=no-user-gesture-required',`--proxy-server=${process.env.HTTPS_PROXY}`,'--proxy-bypass-list=127.0.0.1;localhost'] });
 const p=await b.newPage(); await p.setViewport({ width:W, height:H, deviceScaleFactor:1 });
-p.on('pageerror',e=>console.log('PAGEERROR',e.message)); p.on('console',m=>{ if(['error','warning'].includes(m.type())) console.log('CONSOLE',m.type(),m.text().slice(0,300)); else if(m.text().startsWith('@')) console.log(m.text()); });
+p.on('pageerror',e=>console.log('PAGEERROR',e.message)); let nErr=0; p.on('console',async m=>{ if(['error','warning'].includes(m.type())){ if(nErr++>6) return; let t=m.text(); try{ const parts=await Promise.all(m.args().map(a=>a.evaluate(v=>v instanceof Error?(v.message+' @ '+(v.stack||'').split('\n').slice(0,3).join(' | ')):String(v)))); t=parts.join(' '); }catch(e){} console.log('CONSOLE',m.type(),t.slice(0,500)); } else if(m.text().startsWith('@')) console.log(m.text()); });
 const t0=Date.now();
 await p.goto(`http://127.0.0.1:${server.address().port}/test/w3d/${page}`,{ waitUntil:'load' });
 // hazır olana kadar sanal zamanı ilerlet
@@ -17,7 +17,7 @@ console.log('hazır', Date.now()-t0,'ms');
 await p.evaluate(async(code)=>{ await (0,eval)(code+"\n;0"); }, setup);
 const dt=1000/+fps; let k=0;
 for(let i=0;i<N;i++){ await p.evaluate(async(dt)=>{ await window.__advance(dt); }, dt);
-  if(i%EV===0){ await p.screenshot({ path:path.join(out,`f${String(k++).padStart(5,'0')}.jpg`), type:'jpeg', quality:88 }); } }
+  if(i%EV===0 && i*dt/1000>=+(process.env.START||0)){ await p.screenshot({ path:path.join(out,`f${String(k++).padStart(5,'0')}.jpg`), type:'jpeg', quality:88 }); } }
 const log=await p.evaluate(()=>window.caplog||[]); fs.writeFileSync(path.join(out,'log.json'),JSON.stringify(log));
 const hasA=await p.evaluate(()=>!!window.renderAudio); if(hasA){ const b64=await p.evaluate(async()=>await window.renderAudio()); fs.writeFileSync(path.join(out,'audio.wav'),Buffer.from(b64,'base64')); console.log('ses kaydedildi'); }
 console.log('kare',k,'süre',Math.round((Date.now()-t0)/1000),'s');

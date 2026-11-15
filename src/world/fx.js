@@ -22,7 +22,7 @@ export function createFX(scene, pr=1){
   const normal=pool(scene,420,THREE.NormalBlending,pr), add=pool(scene,260,THREE.AdditiveBlending,pr);
   const _c=new THREE.Color();
   function emit(sys, o){ const k=sys.next; sys.next=(sys.next+1)%sys.P.length; const p=sys.P[k];
-    Object.assign(p,{ on:true, x:o.x, y:o.y, z:o.z, vx:o.vx||0, vy:o.vy||0, vz:o.vz||0, g:o.g??-9.8, drag:o.drag??0.4, life:o.life||1, age:0, s0:o.s0||0.05, s1:o.s1??o.s0??0.05, a0:o.a0??1, floor:o.floor??0.01, stick:!!o.stick });
+    Object.assign(p,{ on:true, x:o.x, y:o.y, z:o.z, vx:o.vx||0, vy:o.vy||0, vz:o.vz||0, g:o.g??-9.8, drag:o.drag??0.4, life:o.life||1, age:0, s0:o.s0||0.05, s1:o.s1??o.s0??0.05, a0:o.a0??1, floor:o.floor??0.01, stick:!!o.stick, fl:o.fl||0, wob:o.wob||0, ph:Math.random()*6.283 });
     _c.set(o.col||0xffffff); p.r=_c.r; p.gg=_c.g; p.b=_c.b; }
   const R=(a,b)=>a+Math.random()*(b-a);
   const api={
@@ -37,6 +37,14 @@ export function createFX(scene, pr=1){
       if(Math.random()<.6) emit(add,{ x:p.x+R(-.3,.3),y:p.y+R(0,.2),z:p.z+R(-.3,.3), vx:R(-.3,.3), vy:R(.6,1.6), vz:R(-.3,.3), g:0.2, drag:0.6, life:R(0.8,1.8), s0:R(0.02,0.04), s1:0.01, col:0xff6a20 }); } },
     /** kıymık / tahta parçası */
     splinters(p,n=8){ for(let i=0;i<n;i++){ const a=Math.random()*6.283; emit(normal,{ x:p.x,y:p.y,z:p.z, vx:Math.cos(a)*R(1,3), vy:R(1,3), vz:Math.sin(a)*R(1,3), g:-9.8, drag:0.3, life:R(0.6,1.1), s0:R(0.02,0.035), s1:0.02, col:0x6a4a2a }); } },
+    /** yarasa bulutu: kanat çırpan koyu lekeler yukarı/dışa dağılır */
+    bats(p,n=40,spread=0.6){ for(let i=0;i<n;i++){ const a=Math.random()*6.283; emit(normal,{ x:p.x+Math.cos(a)*spread*R(0,.6),y:p.y+R(-.3,.5),z:p.z+Math.sin(a)*spread*R(0,.6), vx:Math.cos(a)*R(1.2,3.4), vy:R(0.6,3.2), vz:Math.sin(a)*R(1.2,3.4), g:0.9, drag:0.7, life:R(1.6,2.8), s0:R(0.11,0.17), s1:R(0.08,0.12), a0:1, col:0x050407, fl:R(22,34), wob:R(1.5,3) }); } },
+    /** kuş sürüsü havalanır */
+    birds(p,n=14){ const d=Math.random()*6.283; for(let i=0;i<n;i++){ const a=d+R(-.7,.7); emit(normal,{ x:p.x+R(-1.5,1.5),y:p.y+R(-.5,.5),z:p.z+R(-1.5,1.5), vx:Math.cos(a)*R(3,6), vy:R(2,4.5), vz:Math.sin(a)*R(3,6), g:0.5, drag:0.15, life:R(2.5,4), s0:0.09, s1:0.07, a0:0.9, col:0x1a1814, fl:R(14,20), wob:R(0.5,1.2) }); } },
+    /** tavuk tüyü */
+    feathers(p,n=12,col=0xf2ece0){ for(let i=0;i<n;i++){ const a=Math.random()*6.283; emit(normal,{ x:p.x,y:p.y+R(0,.2),z:p.z, vx:Math.cos(a)*R(.4,1.6), vy:R(.8,2.2), vz:Math.sin(a)*R(.4,1.6), g:-1.2, drag:2.4, life:R(1.6,2.8), s0:R(0.03,0.05), s1:0.03, a0:0.95, col, wob:R(2,4), floor:0.02 }); } },
+    /** tükürük (avuca) */
+    spit(p,dir){ for(let i=0;i<6;i++) emit(normal,{ x:p.x,y:p.y,z:p.z, vx:dir.x*R(.6,1.4), vy:R(-.2,.3), vz:dir.z*R(.6,1.4), g:-9.8, drag:0.5, life:R(0.25,0.5), s0:0.012, s1:0.01, a0:0.8, col:0xdfe8ea }); },
     update(dt){
       for(const sys of [normal,add]){ let any=false;
         for(let i=0;i<sys.P.length;i++){ const p=sys.P[i];
@@ -45,7 +53,8 @@ export function createFX(scene, pr=1){
           const k=Math.exp(-p.drag*dt); p.vx*=k; p.vy=p.vy*k+p.g*dt; p.vz*=k; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt;
           if(p.y<p.floor){ p.y=p.floor; if(p.stick){ p.vx=p.vy=p.vz=0; p.g=0; } else { p.vy=Math.abs(p.vy)*0.2; p.vx*=0.5; p.vz*=0.5; } }
           const t=p.age/p.life; sys.pos[i*3]=p.x; sys.pos[i*3+1]=p.y; sys.pos[i*3+2]=p.z;
-          sys.size[i]=p.s0+(p.s1-p.s0)*t; sys.alpha[i]=p.a0*(t<0.08?t/0.08:1)*(1-Math.pow(t,p.stick?3:1.5)); sys.col[i*3]=p.r; sys.col[i*3+1]=p.gg; sys.col[i*3+2]=p.b; }
+          if(p.wob){ p.x+=Math.sin(p.age*7+p.ph)*p.wob*dt*0.4; p.z+=Math.cos(p.age*6+p.ph)*p.wob*dt*0.4; }
+          sys.size[i]=(p.s0+(p.s1-p.s0)*t)*(p.fl?0.45+0.55*Math.abs(Math.sin(p.age*p.fl+p.ph)):1); sys.alpha[i]=p.a0*(t<0.08?t/0.08:1)*(1-Math.pow(t,p.stick?3:1.5)); sys.col[i*3]=p.r; sys.col[i*3+1]=p.gg; sys.col[i*3+2]=p.b; }
         if(any||sys.wasAny){ for(const k of ['position','aSize','aAlpha','aCol']) sys.g.attributes[k].needsUpdate=true; } sys.wasAny=any; }
     },
     dispose(){ for(const sys of [normal,add]){ scene.remove(sys.pts); sys.g.dispose(); sys.pts.material.dispose(); } },

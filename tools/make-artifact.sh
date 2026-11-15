@@ -7,13 +7,13 @@ cp -r "$SRC/assets" "$SRC/chunks" "$SRC/icons" "$SRC/solo.js" "$SRC/multi.js" "$
 cp /home/claude/vampir-koylu/artifact/supabase.js "$OUT/supabase.js"
 find "$OUT/assets" -name "*.glb" | while read f; do python3 -c "
 import base64,json,sys; d=open(sys.argv[1],'rb').read(); json.dump({'b':base64.b64encode(d).decode()},open(sys.argv[1][:-4]+'.json','w'))" "$f"; rm "$f"; done
-rm -f "$OUT/assets/voice/.cb.json"
+rm -f "$OUT/assets/voice/.cb.json"; rm -rf "$OUT/assets/voice/f"  # önizlemede kadın sesi erkek kaydından türetilir (dosya sınırı)
 python3 - "$SRC/index.html" "$OUT/index.html" <<'PY'
 import sys
 s=open(sys.argv[1]).read()
 s=s.replace('<link rel="manifest" href="manifest.webmanifest">','')
 shim='''<script>
-window.VK_GLB_EXT='.json';
+window.VK_GLB_EXT='.json'; window.VK_NO_FEM=1;
 /* Önizleme ortamı: tarayıcı depolaması kapalıysa bellek içi yedek */
 (function(){ try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }catch(e){ var m={}; var mem={getItem:function(k){return k in m?m[k]:null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];},clear:function(){m={};},key:function(i){return Object.keys(m)[i]||null;},get length(){return Object.keys(m).length;}}; try{ Object.defineProperty(window,'localStorage',{value:mem,configurable:true}); }catch(_){ } } })();
 </script>'''

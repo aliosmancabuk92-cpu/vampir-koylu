@@ -7,30 +7,32 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import HANDS from './hands.json';
 
 /** Karakter tipleri (tek oyunculu: hepsi erkek) */
 export const LOOKS = {
   player:   { skin:'#d9a882', hair:'#1a120c', cloth:'#8a5a3a', hat:'kasket', hatC:'#2a2826', must:'kalin', h:1.78, w:1.0, idle:'Idle_Loop' },
   muhtar:   { skin:'#c99472', hair:'#2a2420', cloth:'#4a4a52', hat:'kasket', hatC:'#1e1c1a', must:'pala',  h:1.76, w:1.1,  idle:'Idle_FoldArms_Loop', walk:'Walk_Formal_Loop' },
-  dayioglu: { skin:'#c48d66', hair:'#16100c', cloth:'#5a6a3a', hat:'kasket', hatC:'#3a3228', must:'kalin', h:1.8,  w:1.04, idle:'Idle_Loop' },
+  dayioglu: { skin:'#c48d66', hair:'#16100c', cloth:'#5a6a3a', hat:'kasket', hatC:'#3a3228', must:'kalin', h:1.8,  w:1.04, idle:'Idle_Loop', walk:'walk_cool' },
   emmi:     { skin:'#d8a47e', hair:'#5a544c', cloth:'#d8ccb4', hat:'takke',  hatC:'#e6e0d4', must:'kalin', h:1.74, w:1.0,  idle:'Idle_FoldArms_Loop' },
-  delikanli:{ skin:'#dcb08a', hair:'#120c08', cloth:'#3a5a8a', hat:'none',   must:'ince',  h:1.84, w:0.94, idle:'Idle_Loop' },
+  delikanli:{ skin:'#dcb08a', hair:'#120c08', cloth:'#3a5a8a', hat:'none',   must:'ince',  h:1.84, w:0.94, idle:'Idle_Loop', walk:'walk_teen' },
   memis:    { skin:'#caa07a', hair:'#1a120c', cloth:'#8a3a30', hat:'kasket', hatC:'#4a1a16', must:'kalin', h:1.72, w:1.12, idle:'Idle_Loop' },
-  dede:     { skin:'#c49070', hair:'#cfcac2', cloth:'#6a6258', hat:'kalpak', hatC:'#2a2420', must:'pala', mustC:'#d8d4cc', beard:'#cfcac2', h:1.7, w:0.98, idle:'Idle_FoldArms_Loop', slow:true },
+  dede:     { skin:'#c49070', hair:'#cfcac2', cloth:'#6a6258', hat:'kalpak', hatC:'#2a2420', must:'pala', mustC:'#d8d4cc', beard:'#cfcac2', h:1.7, w:0.98, idle:'Idle_FoldArms_Loop', slow:true, walk:'walk_old' },
   coban:    { skin:'#b98060', hair:'#1e140e', cloth:'#9a7a4a', hat:'none',   must:'kalin', h:1.79, w:1.02, idle:'Idle_Loop' },
   bakkal:   { skin:'#d4a07c', hair:'#2a1e14', cloth:'#e2d8c4', hat:'kasket', hatC:'#3a342c', must:'kalin', h:1.73, w:1.15, idle:'Idle_FoldArms_Loop' },
   kahveci:  { skin:'#c48d66', hair:'#1a120c', cloth:'#6a4a6a', hat:'takke',  hatC:'#2a2a30', must:'pala',  h:1.77, w:1.0,  idle:'Idle_Loop' },
   bekci:    { skin:'#c08a68', hair:'#1a120c', cloth:'#2e3e5e', hat:'bekci',  hatC:'#1e2230', must:'kalin', h:1.8,  w:1.05, idle:'Idle_Lantern_Loop', lantern:true },
-  demirci:  { skin:'#b07858', hair:'#0e0a08', cloth:'#5a3a26', hat:'none',   must:'kalin', h:1.82, w:1.18, idle:'Idle_FoldArms_Loop' },
-  deli:     { skin:'#d4a47e', hair:'#3a2414', cloth:'#7a8a5a', hat:'none',   must:'none',  h:1.75, w:0.96, idle:'Idle_Loop' },
+  demirci:  { skin:'#b07858', hair:'#0e0a08', cloth:'#5a3a26', hat:'none',   must:'kalin', h:1.82, w:1.18, idle:'Idle_FoldArms_Loop', walk:'walk_strong' },
+  deli:     { skin:'#d4a47e', hair:'#3a2414', cloth:'#7a8a5a', hat:'none',   must:'none',  h:1.75, w:0.96, idle:'Idle_Loop', walk:'walk_drunk' },
+  kufurbaz: { skin:'#c99068', hair:'#2a1a12', cloth:'#6a4a34', hat:'kasket', hatC:'#24201c', must:'pala',  h:1.74, w:1.14, idle:'Idle_FoldArms_Loop', walk:'walk_angry' },
   // gece kapıya gelen isimsiz gölge (kimliği belli olmasın)
-  golge:    { skin:'#4a3a36', hair:'#050505', cloth:'#0b0b10', clothAmt:0.96, hat:'hood', hatC:'#08080b', must:'none', h:1.88, w:1.05, idle:'Idle_Loop' },
+  golge:    { skin:'#4a3a36', hair:'#050505', cloth:'#0b0b10', clothAmt:0.96, hat:'hood', hatC:'#08080b', must:'none', h:1.88, w:1.05, idle:'Idle_Loop', walk:'walk_sneak' },
   // odalı mod (kadın) tipleri
   kadin1:   { female:true, skin:'#e0b494', hair:'#2a1a10', cloth:'#6a3a40', scarf:'#8a2a2a', h:1.66, w:1.0, idle:'Idle_Loop' },
   kadin2:   { female:true, skin:'#d4a07c', hair:'#140c08', cloth:'#3a4a5a', scarf:'#e8e2d4', h:1.64, w:1.0, idle:'Idle_FoldArms_Loop' },
   kadin3:   { female:true, skin:'#c99472', hair:'#5a3a22', cloth:'#5a5a3a', scarf:'#3a5a3a', h:1.68, w:1.0, idle:'Idle_Loop' },
 };
-export const MALE_KEYS=['muhtar','dayioglu','emmi','delikanli','memis','dede','coban','bakkal','kahveci','bekci','demirci','deli'];
+export const MALE_KEYS=['muhtar','dayioglu','emmi','delikanli','memis','dede','coban','bakkal','kahveci','bekci','demirci','deli','kufurbaz'];
 export const FEMALE_KEYS=['kadin1','kadin2','kadin3'];
 
 let LIB=null, LIBP=null;
@@ -77,8 +79,13 @@ function maskBelowNeck(mesh){
     const g=mesh.geometry.clone(); g.setAttribute('aHide',new THREE.BufferAttribute(hide,1)); maskedGeo.set(key,g);
   }
   mesh.geometry=maskedGeo.get(key);
-  mesh.material.onBeforeCompile=(sh)=>{
-    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float aHide; varying float vHide;').replace('#include <begin_vertex>','#include <begin_vertex>\nvHide=aHide;');
+  mesh.material.onBeforeCompile=(sh)=>{ const J=mesh.material.userData.jaw; if(J){ sh.uniforms.uJaw=J.amt; sh.uniforms.uMouth=J.mouth; sh.uniforms.uFwd=J.fwd; sh.uniforms.uUp=J.up; sh.uniforms.uSide=J.side; sh.uniforms.uHinge=J.hinge; }
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float aHide; varying float vHide; uniform float uJaw; uniform vec3 uMouth, uFwd, uUp, uSide, uHinge;').replace('#include <begin_vertex>',`#include <begin_vertex>
+vHide=aHide;
+{ vec3 d=transformed-uMouth; float up=dot(d,uUp), fw=dot(d,uFwd), sd=abs(dot(d,uSide));
+  float w=smoothstep(0.004,-0.012,up)*smoothstep(-0.075,-0.02,fw)*smoothstep(0.075,0.04,sd)*smoothstep(-0.085,-0.06,up);
+  if(w>0.0 && uJaw>0.0){ float a=-uJaw*w; vec3 r=transformed-uHinge; float cu=dot(r,uUp), cf=dot(r,uFwd), cs=dot(r,uSide); float c=cos(a), s2=sin(a);
+    transformed=uHinge+uSide*cs+uUp*(cu*c-cf*s2)+uFwd*(cu*s2+cf*c); } }`);
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vHide;').replace('void main() {','void main() {\nif(vHide>0.5) discard;');
   };
   mesh.material.customProgramCacheKey=()=>'mask-neck'; mesh.material.needsUpdate=true;
@@ -90,6 +97,11 @@ const AX=new THREE.Vector3(1,0,0), AY=new THREE.Vector3(0,1,0), AZ=new THREE.Vec
 export const AXES={ X:AX, Y:AY, Z:AZ };
 const wrap=(a)=>{ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; };
 const WALK_V=1.3, JOG_V=3.1;
+/* el pozları (parmak eklemleri): relax · fist · point · open · grip */
+const FINGERS=['thumb','index','middle','ring','pinky'].flatMap(n=>[1,2,3].map(i=>`${n}_0${i}`));
+const HQ={}; for(const [n,set] of Object.entries(HANDS)){ HQ[n]={}; for(const [b,q] of Object.entries(set)) HQ[n][b]=new THREE.Quaternion(q[0],q[1],q[2],q[3]); }
+const HAND_BY_CLIP=(n)=>{ if(!n) return null; if(n==='point') return ['relax','point']; if(/^(argue|quarrel|kick|Punch|Melee|walk_angry)/.test(n)) return ['fist','fist']; if(/^(run|Jog)/.test(n)) return ['fist','fist'];
+  if(/^(chop|noose|pull_A|pullE_A|halay|drag_obj|pickup)/.test(n)) return ['grip','grip']; if(/^(shrug|talk_|Idle_Talking|dance|wave|scared|cry|joy|happy|stretch|Spell)/.test(n)) return ['open','open']; return null; };
 
 /** Pozlar (kemik eklemeleri: [eksen, açı]) */
 export const POSES = {
@@ -120,7 +132,7 @@ export function createVillager(key='player', opts={}){
   root.updateMatrixWorld(true);
   const headB=bones.get('Head'); let eyeBox=null;
   root.traverse(o=>{ if(o.isMesh && o.userData.eyes){ o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld); eyeBox=eyeBox?eyeBox.union(b):b; } });
-  const eyeGlow=[], hatParts=[]; let headTop=1.75;
+  const eyeGlow=[], hatParts=[]; let headTop=1.75; const jawAmt={ value:0 };
   if(headB && eyeBox){
     const E=eyeBox.getCenter(new THREE.Vector3()); const ew=Math.max(0.05, eyeBox.max.x-eyeBox.min.x); const fz=eyeBox.max.z;
     const hm=new THREE.MeshStandardMaterial({ color:new THREE.Color(Lk.mustC||Lk.hair), roughness:.95 }); mats.push(hm);
@@ -154,6 +166,11 @@ export function createVillager(key='player', opts={}){
       const hood=new THREE.Mesh(new THREE.SphereGeometry(hr*1.32,24,16,0,Math.PI*2,0,Math.PI*0.72), hm2); hood.scale.set(1.0,1.18,1.12); hood.position.set(cx,top-hr*0.95,cz-hr*0.22); attach(hood);
       const tip=new THREE.Mesh(new THREE.ConeGeometry(hr*0.7,hr*0.9,16), hm2); tip.position.set(cx,top+hr*0.45,cz-hr*0.45); tip.rotation.x=-0.5; attach(tip); }
     if(fem && Lk.scarf){ const sm=new THREE.MeshStandardMaterial({ color:new THREE.Color(Lk.scarf), roughness:.95, side:THREE.DoubleSide }); mats.push(sm); const s=new THREE.Mesh(new THREE.SphereGeometry(hr*1.18,24,14,0,Math.PI*2,0,Math.PI*0.66), sm); s.scale.set(1.02,1.08,1.1); s.position.set(cx,top-hr*1.0,cz-hr*0.1); attach(s); }
+    // çene: konuşurken alt yüz aşağı döner (şekil anahtarı yok; gölgelendiriciyle)
+    for(const o of bodySkin){ const inv=o.matrixWorld.clone().invert(); const L=(v)=>v.clone().applyMatrix4(inv); const LD=(v)=>v.clone().transformDirection(inv);
+      const mouth=new THREE.Vector3(E.x, E.y-ew*0.92, fz-ew*0.02); const hinge=new THREE.Vector3(E.x, E.y-ew*0.55, fz-ew*1.15);
+      o.material.userData.jaw={ amt:jawAmt, mouth:{ value:L(mouth) }, hinge:{ value:L(hinge) }, fwd:{ value:LD(new THREE.Vector3(0,0,1)) }, up:{ value:LD(new THREE.Vector3(0,1,0)) }, side:{ value:LD(new THREE.Vector3(1,0,0)) } }; o.material.needsUpdate=true; }
+    // ağız içi (çene açılınca görünen koyu boşluk)
     // kızıl gözler (vampir) — başlangıçta görünmez
     const gm=new THREE.MeshBasicMaterial({ color:0xff2a1a, transparent:true, opacity:0, depthWrite:false, fog:false });
     for(const s of [-1,1]){ const e=new THREE.Mesh(new THREE.SphereGeometry(ew*0.14,10,8), gm); e.position.set(E.x+s*ew*0.3, E.y+ew*0.02, fz+ew*0.03); root.add(e); headB.attach(e); eyeGlow.push(e); }
@@ -169,15 +186,18 @@ export function createVillager(key='player', opts={}){
   const mixer=new THREE.AnimationMixer(root);
   const V={ key, cfg:Lk, holder, root, bones, mixer, mats, eyeGlow, hatParts, lantern, hit, scale:sc, headTop:headTop*sc,
     cur:null, curName:null, yaw:0, faceYaw:null, target:null, spd:0, onArrive:null, walkClip:Lk.walk||'Walk_Loop', idleClip:Lk.idle||'Idle_Loop',
-    pose:null, poseW:0, poseTo:0, look:null, lookYaw:0, lookPitch:0, kickT:0, vamp:0, alpha:1, talk:false, fixed:false, frozen:false, ext:{} };
+    pose:null, poseW:0, poseTo:0, hands:{ l:{ n:null, w:0, to:0 }, r:{ n:null, w:0, to:0 } }, handLock:false, look:null, lookYaw:0, lookPitch:0, kickT:0, vamp:0, alpha:1, talk:false, fixed:false, frozen:false, ext:{} };
   V.headPos=(out=new THREE.Vector3())=>{ const hb=bones.get('Head'); if(hb){ hb.getWorldPosition(out); out.y+=0.12*sc; return out; } return out.copy(holder.position).setY(holder.position.y+V.headTop); };
   V.play=(name,{ fade=.3, once=false, speed=1, restart=false, at=null }={})=>{
     const c=LIB.clips.get(name); if(!c) return null;
     if(V.curName===name && !restart && !once && V.cur){ V.cur.timeScale=speed; V.cur.paused=false; return V.cur; }
     const a=mixer.clipAction(c); a.reset(); a.paused=false; a.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat, once?1:Infinity); a.clampWhenFinished=once; a.timeScale=speed; if(at!=null) a.time=at; a.play();
     if(V.cur && V.cur!==a && fade>0) a.crossFadeFrom(V.cur, fade, false); else if(V.cur && V.cur!==a) V.cur.stop();
-    V.cur=a; V.curName=name; return a;
+    V.cur=a; V.curName=name; if(!V.handLock){ const h=HAND_BY_CLIP(name); V.setHand('l',h?h[0]:null); V.setHand('r',h?h[1]:null); } return a;
   };
+  /** el pozu: side 'l'|'r', name: relax|fist|point|open|grip|null */
+  V.setHand=(side,name,{ w=1 }={})=>{ const h=V.hands[side]; if(!name||name==='relax'){ h.to=0; return; } if(h.n!==name){ h.from=h.n; h.n=name; } h.to=w; };
+  V.lockHands=(l,r)=>{ V.handLock=l!==undefined; if(l!==undefined){ V.setHand('l',l); V.setHand('r',r===undefined?l:r); } };
   V.idle=(fade=.35)=>{ if(V.fixed) return; V.play(V.talk?'Idle_Talking_Loop':V.idleClip, { speed:Lk.slow?0.85:1, fade }); };
   V.once=(name,{ speed=1, then=null }={})=>new Promise(res=>{ const a=V.play(name,{ once:true, restart:true, speed }); if(!a){ res(); return; } const d=(a.getClip().duration/speed)*1000; setTimeout(()=>{ if(V.curName===name && !V.fixed){ if(then) V.play(then); else V.idle(); } res(); }, Math.max(200,d-120)); });
   V.freeze=(name,t=0)=>{ const a=V.play(name,{ fade:0, restart:true }); if(a){ a.time=t; a.paused=true; mixer.update(0); } V.frozen=true; };
@@ -253,11 +273,17 @@ export function createVillager(key='player', opts={}){
     // tekme
     if(V.kickT>0){ V.kickT+=dt/0.6; const k=Math.sin(Math.min(1,V.kickT)*Math.PI); const th=bones.get('thigh_r'), ca=bones.get('calf_r'), sp=bones.get('spine_01');
       rot(th,AX,1.5*k); rot(ca,AX,-1.1*k*(1-Math.min(1,V.kickT)*0.6)); rot(sp,AX,-0.22*k); if(V.kickT>=1) V.kickT=0; }
+    // konuşma: çene açılıp kapanır (heceye benzer düzensiz ritim)
+    { V.jawT=(V.jawT||0)+dt; let tgt=0; if(V.talk){ const t=V.jawT; tgt=Math.max(0,0.07+0.07*Math.sin(t*14.3)+0.04*Math.sin(t*23.7+1.3)+0.025*Math.sin(t*7.1)); } if(V.mouthOpen) tgt=Math.max(tgt,V.mouthOpen);
+      jawAmt.value+=(tgt-jawAmt.value)*Math.min(1,dt*18); }
     // sahne değiştiricileri (çırpınma, eğilme…)
     for(const fn of V.mods) fn(dt,rot,bones,V);
     // el hedefleri
     let needIK=false; for(const sd in V.ik){ const o=V.ik[sd]; o.w+=(o.wTo-o.w)*Math.min(1,dt*o.rate); if(o.wTo===0 && o.w<0.01){ delete V.ik[sd]; continue; } needIK=true; }
     if(needIK){ holder.updateMatrixWorld(true); for(const sd in V.ik) solveArm(sd,V.ik[sd]); }
+    // parmaklar
+    for(const sd of ['l','r']){ const h=V.hands[sd]; if(h.w!==h.to){ h.w+=(h.to-h.w)*Math.min(1,dt*10); if(Math.abs(h.w-h.to)<0.01) h.w=h.to; }
+      if(h.w>0.01 && h.n && HQ[h.n]){ const set=HQ[h.n]; for(const f of FINGERS){ const b=bones.get(f+'_'+sd); const tq=set[f+'_'+sd]; if(!b||!tq) continue; _q.copy(b.quaternion).slerp(tq,h.w); setQ(b,_q); } } }
     if(V.afterUpdate) V.afterUpdate(dt);
   };
   /* ---- iki kemikli kol IK ---- */

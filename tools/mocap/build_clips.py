@@ -29,6 +29,18 @@ C = [
     ('drag_obj', '81_08', 'best', 4.0, 0, 'both', None, .35), ('pickup', '26_10', 'best', 3.0, 0, 'both', None, .4),
     ('chicken', '18_15', 'best', 6.0, 0, None, None, .5), ('noose', '79_20', 'handsup', 3.4, 0, 'both', None, .5),
     ('kneel', '23_03', 0.0, 99, 0, None, None, .4),
+    # v4: dans, kaçış, kalkma, boşta hâller, yürüyüş tarzları
+    ('dance_chicken', '143_34', 0.5, 6.2, 0, None, None, .5), ('dance_squat', '90_30', 3.9, 7.9, 0, None, None, .4),
+    ('dance_mickey', '120_05', 0.3, 8.8, 0, None, None, .5), ('dance_arms', '113_04', 0.0, 8.0, 0, None, None, .5),
+    ('dance_twist', '141_12', 0.2, 4.6, 0, None, None, .5), ('halay', '141_32', 'loop', 0.15, 0, None, None, .3),
+    ('prone', '140_01', 0.3, 1.5, 0, None, None, .3), ('getup_face', '140_01', 1.5, 5.6, 0, None, None, .35),
+    ('hop', '132_23', 2.3, 5.1, 0, None, None, .3), ('crawl', '111_03', 3.6, 10.8, 0, None, None, .4),
+    ('stretch', '141_13', 0, 99, 0, None, None, .5), ('idle_shift', '139_02', 0, 7.7, 0, None, None, .5),
+    ('joy', '142_09', 'best', 5.0, 0, None, None, .5), ('wave', '141_16', 0, 99, 0, None, None, .5),
+    ('stumble', '91_59', 0, 99, 0, None, None, .3),
+    ('walk_old', '137_33', 'loop', 0.3, 0, None, None, .3), ('walk_strong', '137_42', 'loop', 0.5, 0, None, None, .3),
+    ('walk_teen', '137_20', 'loop', 0.5, 0, None, None, .3), ('walk_cool', '142_04', 'loop', 0.5, 0, None, None, .3),
+    ('walk_sneak', '142_22', 'loop', 0.2, 0, None, None, .3), ('run', '127_03', 'loop', 2.0, 0, None, None, .3),
 ]
 only = set(sys.argv[1:])
 tgt = Target(); wr = GLBWriter(tgt); meta = {}
@@ -86,7 +98,8 @@ for name, mot, t0, t1, mir, fing, grp, sig in C:
     if name.startswith('kick'):
         sr, sl = speed('ball_r'), speed('ball_l'); foot = 'r' if sr.max() >= sl.max() else 'l'
         sp = sr if foot == 'r' else sl; hi = int(np.argmax(sp)); fp = pos['ball_'+foot][hi]
-        ev = {'hit': round(hi/FPS, 3), 'foot': foot, 'hitPos': [round(float(v), 3) for v in fp]}
+        ap = int(np.argmax(pos['ball_'+foot][:, 1])); apx = pos['ball_'+foot][ap]
+        ev = {'hit': round(hi/FPS, 3), 'foot': foot, 'hitPos': [round(float(v), 3) for v in fp], 'apex': round(ap/FPS, 3), 'apexPos': [round(float(v), 3) for v in apx]}
     if name in ('chop', 'hammer', 'smash'):
         h = pos['hand_r'][:, 1]; hits = []
         for i in range(3, len(h)-3):

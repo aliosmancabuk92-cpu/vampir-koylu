@@ -16,6 +16,7 @@ const DEM={
   tn:{ '':'bu herif', e:'bu herife', i:'bu herifi', in:'bu herifin', de:'bu herifte' },
   o:{ '':'şu adam', e:'şu adama', i:'şu adamı', in:'şu adamın', de:'şu adamda' },
   v:{ '':'garibim', e:'garibe', i:'garibi', in:'garibin', de:'garipte' },
+  y:{ '':'gardaş', e:'gardaş', i:'gardaş', in:'gardaş', de:'gardaş' },
 };
 const ROLE_SP={ doktor:'doktorum', kahin:'kâhinim', 'kâhin':'kâhinim', koylu:'köylüyüm', 'köylü':'köylüyüm' };
 const capFirst=(x)=>x.replace(/(^|[.!?…]\s+)([a-zçğıöşü])/g,(m,a,b)=>a+(b==='i'?'İ':b.toLocaleUpperCase('tr')));
@@ -53,6 +54,7 @@ export const ARCHETYPES = [
   { key:'bekci', title:'Bekçi', pitch:.88 },
   { key:'demirci', title:'Demirci', pitch:.75 },
   { key:'deli', title:'Deli', pitch:1.25 },
+  { key:'kufurbaz', title:'Küfürbaz', pitch:.85 },
 ];
 
 /* ---------------- AÇILIŞ SAHNESİ ----------------
@@ -208,3 +210,149 @@ export const COUNTER_SEER = ['Yalan söylüyo! Asıl kâhin benim ve dün gece {
 export const DOCTOR_SAVED = ['Doktor benim. Dün gece {t_i} ben kurtardım.','Söylemek zorundayım: ben doktorum, {t_i} korudum.'];
 export const QUIET = ['Bi şey bilmiyom. Herkes şüpheli.','Dikkatli olalım, yanlış kişiyi asarsak biteriz.','Ben kararsızım la.','Konuşanlara değil, susanlara bakın.','Dün gece hiç uyuyamadım…','Bi fikrim yok ama birini asmamız lazım.'];
 export const AFTER_KILL = ['{v} öldü… Kim yapmış olabilir la?','Zavallı {v}. Bu gece sırada kim var?'];
+
+/* =====================================================================
+   YENİ SAHNELER (v4)
+   ===================================================================== */
+/* ---------------- KAPI BASKINI ---------------- */
+export const DOOR = {
+  knock: ['Aç la kapıyı! Biliyoz içerdesin!','Açmazsan kırarız ha, ona göre!',{ h:'Aç la şu kapıyı, hamuğa goduuum!', s:'Aç la şu kapıyı, bekletme!' },'Kapıyı aç, meydana gidiyoz!'],
+  inside: ['Evde yokum!','Kimse yok la, sonra gelin!','Uyuyom la, uyuyom! Yarın gelin!','Yanlış kapı! Burda kimse yok!'],
+  weak: ['Çekilin, ben açarım! Hooop!','Bi tekmede açarım ben bunu! Hıııh!'],
+  hurt: ['Ayyy ayağım! Ayağım gırıldı la!',{ h:'Hamuğa goduuum, kapı demirden mi bu?!', s:'Vay anam, kapı demirden mi bu?!' },'Ah anam ah! Parmaklarım!'],
+  tease: ['Heh heh! Çekil la çekil, sen daha çocuksun!','Oğlum sen tavuk mu tekmeliyon?','Ayağını tutup sekiyo bak, heh heh!'],
+  strong: ['Çekilin! Bu iş bilek işi!','Tü tü… Bismillah! HOOOP!','Kenara çekil delikanlı, usta geldi!'],
+  broken: ['Buyur bakalım, kapı mapı galmadı!','Menteşesiyle beraber gitti la!',{ h:'Al sana kapı, hamuğa goduuum!', s:'Al sana kapı!' }],
+  open: ['Lan… kapı açıkmış zaten!','Ula kilitli değilmiş, boşuna tekmeledik!'],
+  fell: ['Ayyy! Kim açık bıraktı la bunu?!','Yer mi bu, tavan mı? Dönüyo her yer!'],
+  cling: ['Bırakmam la, bırakmam! Kapı benim kapım!','Gitmem la! Burda doğdum, burda ölürüm!',{ h:'Çekmeyin la, hamına godumun! Pervaz söküldü!', s:'Çekmeyin la! Pervaz söküldü!' }],
+};
+/* ---------------- DARAĞACI ---------------- */
+export const GALLOWS = {
+  knot: ['Düğüm sağlam, merak etme. Hiç acımaz.','İpi sabundan geçirdim, kaymaz bu.','Boynuna tam oturdu, maşallah.'],
+  last: ['Bari son bi sigara verin!','Annemi çağırın, annemi!','Benim tavukları kimse yemesin, vasiyetim!','İneğimi kimseye vermeyin, vasiyetim!'],
+  look: ['Ben bakamam la, gözümü kapatıyom!','Çocukları içeri sokun, görmesinler!','Ay ay ay… hadi bitsin artık!'],
+};
+/* ---------------- ARKADAN TEKME ---------------- */
+export const KICK_BUTT = {
+  go: ['Dur bakalım, ben arkasından dolanayım!','Arkasına geçiyom, görmesin!','Şimdi göreceksin sen!'],
+  hit: [{ h:'Al sana, götüne goduuuum!', s:'Al sana, kıçına!' },{ h:'Götüne tekme, götüne! Emersin kanımızı ha?', s:'Kıçına tekme! Emersin kanımızı ha?' },{ h:'Götünü kaldır la, bi tane de benden!', s:'Kıçını kaldır, bi tane de benden!' }],
+  back: ['Ayyy! Geri geldi la, geri geldi!','Sallanıp bana çarptı la! Allahım belim!'],
+  miss: ['Iskaladım la!','Hoppala… ayağım boşa gitti!'],
+  tease: ['Heh heh! Oğlum ayağın mı yok?','Vampir de güldü sana la!','Sarkaç gibi döndü geldi, heh heh!'],
+  vamp: ['Ooof! Yavaş la, yavaş!','Heh… bu mu tekme? Gıdıkladın beni!','Ayyy kuyruk sokumum!'],
+};
+/* ---------------- YÜZÜSTÜ KAZIK (sert mod) ---------------- */
+export const STAKE_BUTT = {
+  start: ['İndirin şunu ipten! Yüzüstü yatırın!','Yüzü yere gelsin! Tutun, kaçmasın!'],
+  hold: ['Sen sağ kolunu tut, sen sol kolunu!','Belinden bastır, gıpraşmasın!','Bacaklarına otur la, tepiniyo!'],
+  ask: ['Usta, kazık nerden girecek?'],
+  answer: ['Arkadan arkadan! Eski usul, dedemden gördüğüm gibi!','Arkadan girecek, Kazıklı Voyvoda usulü!'],
+  push: [{ h:'Kazık götüne goduuuum! Bi daha kan emersin ha?', s:'Kazık arkadan! Bi daha kan emersin ha?' },'Bastır la bastır! Bi daha!','Hooop! Bi tane daha!',{ h:'Gir la gir, hamuğa goduuum!', s:'Gir la gir!' }],
+  beg: ['Yapmayın la, oradan olmaz! Oradan olmaz!','Durun durun! Ben şakaydım la, şaka!','Konuşalım, konuşalım! Anlaşırız!'],
+  roar: ['IAAAAA… HUAAAAA!','IAAAAAA! HUAAAAAAA!','HUAAAAA… IAAAAAA!'],
+  after: ['Kül oldu gitti la! Kazık dimdik kaldı!',{ h:'Hamuğa goduuum, nasıl böğürdü be! Eşek gibi!', s:'Nasıl böğürdü be! Eşek gibi!' },'Kazık kaldı, vampir gitti. Hadi herkes evine!'],
+};
+/* ---------------- VAMPİR KAZANIR: KOVALAMACA ---------------- */
+export const END_CHASE = {
+  vamp1: ['Nereye kaçacan gundi?','Heh heh… nereye kaçacan gundi?'],
+  run: ['Bende ölüm yoooook!','Bende ölüm yok la, yoooook!'],
+  help: ['İmdaaat! Açın la kapıyı!','Açın la, açııın! Kimse yok mu?!','Kilitli la, hepsi kilitli!'],
+  vamp2: ['Gel ula tırrik!','Gel ula tırrik, gel gel!'],
+  caught: ['Bırak la, bırak! Kanım az benim, kansızım ben!','Yapma gurban olduğum, yapma!'],
+  after: ['Ohhh… kan değil bal!','Hıh… biraz tuzluymuş ama olsun.','Ohh… doydum. Köy benim artık!'],
+  others: ['Kaçın la kaçın! Herkes başının çaresine baksın!','Ben ahıra saklanıyom!'],
+};
+/* ---------------- KÖYLÜLER KAZANIR: ŞENLİK ---------------- */
+export const END_PARTY = {
+  nufus: [{ h:'Köy kurtuldu ama pezevenk nüfusun içinden geçti!', s:'Köy kurtuldu ama nüfusun içinden geçti!' }],
+  artir: ['Doğru söylüyosun. Nüfusu artırmamız lazım!'],
+  slap: ['Utan la utan! Daha ölüler soğumadı!','Sen önce kendine bi gelin bul, sonra nüfus artır!'],
+  alone: ['Bi ben galdım la… Köyü ben mi şenlendirecem?','Herkes gitti, bi ben galdım. Olsun, oynarım ben de!'],
+  small: ['Muhtar, nüfus memuruna ne diyecez?','Vampir yedi deriz, inanmayan gelsin baksın!','Ben bu gece rahat uyuyacam, ohhh!'],
+  big: ['Çağırın davulcuyu, halay çekecez!','Hadi millet, halaya! Mendil nerde mendil?','Bu gece köyde düğün var!'],
+  dance: ['Hele hele, oyna oyna!','Oynaaa! Omuzları titret!','Göbek at la göbek!'],
+};
+/* ---------------- KÜFÜRBAZ EMMİ (tartışmada patlar) ---------------- */
+export const KUFURBAZ = [
+  { h:'Hay senin ağzına kürekle vurayım! Vampir mi olur la bu köyden?', s:'Hay senin ağzına kürekle vurayım! Vampir mi olur bu köyden?' },
+  { h:'Ulan eşşoğlu eşşek vampir, çık ortaya! Sülaleni kazığa oturturum!', s:'Ulan vampir, çık ortaya! Sülaleni kazığa oturturum!' },
+  { h:'Hamuğa goduuum, gece gözüme uyku girmedi! Kim yaptıysa ağzına sıçayım!', s:'Gece gözüme uyku girmedi! Kim yaptıysa yandı!' },
+  { h:'Pezevenk gibi bakma la bana! Ben vampir olsam önce senin kanını emerdim!', s:'Öyle bakma la bana! Ben vampir olsam önce senin kanını emerdim!' },
+  { h:'Hay senin kanına, damarına, alyuvarına goyim!', s:'Hay senin kanına, damarına, alyuvarına!' },
+  { h:'Tüüü, hepinizin ağzına tükürüyüm! Asın şunu da kurtulalım!', s:'Tüüü! Asın şunu da kurtulalım!' },
+];
+
+/* =====================================================================
+   KONUŞMA / İKNA (v4) — {t}=hedef, {o}=başka biri
+   ===================================================================== */
+export const ACCUSE_WHY = {
+  night: ['{t} dün gece dışardaydı, kendi gözümle gördüm!','Gece yarısı {t_in} kapısı açıldı, ben gördüm la!'],
+  quiet: ['{t} hiç ağzını açmıyo. Susan vampirdir!','{t} sabahtan beri tek kelime etmedi, niye acaba?'],
+  pushed: ['Dün masum adamı {t} astırdı! Unuttunuz mu?','{t} hep masumları gösteriyo. Bunda bi iş var!'],
+  gut: ['İçimden bi ses {t} diyo. Bi tuhaf bakıyo bana.','{t_in} dişlerine bakın la, sivri sivri!'],
+  lie: ['{t} yalan söyledi, yakaladım! Az önce başka diyodu!','{t_in} lafı tutmuyo, bi öyle diyo bi böyle!'],
+};
+export const DEFEND_WHY = {
+  alibi: ['{t} dün gece benim yanımdaydı, birlikte çay içtik!','Dün gece {t} ile sabaha kadar okey oynadık!'],
+  seer: ['Kâhin {t_e} temiz dedi! Ona dokunmayın!'],
+  accuser: ['{t_i} suçlayana bakın asıl! Şüpheli o!','{t_e} çamur atan, vampirin ta kendisi!'],
+  vouch: ['Ben {t_e} kefilim, ne diyosanız bana deyin.','{t_i} küçüklüğünden beri tanırım, o yapmaz!'],
+};
+export const PRESS = {
+  ask: ['{y}, dün gece nerdeydin? Söyle bakalım!','{y}, gözümün içine bak! Vampir misin?'],
+  good: ['Evdeydim la, karım şahit! Horlamamdan bütün mahalle uyumadı!','Ahırdaydım, ineği sağıyodum. Sor ineğe!','Kahvedeydim, kâğıt oynuyoduk. Herkes gördü!'],
+  bad: ['Ben mi? Evdeydim… yok yok, ahırdaydım! Yani… çeşmedeydim!','Nerde olacam la… şey… yani… ordaydım işte!'],
+  angry: ['Sana ne la! Hesap mı vereceğim sana?','Sen kimsin de bana soru soruyon?'],
+};
+export const ALLY = {
+  ask: ['{y}, gel seninle anlaşalım. Sen bana kefil ol, ben sana.'],
+  yes: ['Tamam, anlaştık! Sırt sırta veririz.','Olur, sözüm söz. Sana kimse dokunamaz.'],
+  no: ['Yok la, sana güvenmem! Bi tuhafsın.','Anlaşma manlaşma yok, herkes kendi başına!'],
+};
+export const CALM = ['Sakin olun millet! Aceleyle yanlış adamı asmayalım.','Durun bi dakka, kafa kafaya verelim. Telaşla iş olmaz.'];
+export const OATH = ['Yemin ederim vampir değilim! Ekmek çarpsın!','Vallahi billahi değilim! Gözüm kör olsun!'];
+export const AGREE = ['Doğru diyo!','Haklı la!','Ben de öyle düşünüyom.','Aynen öyle!'];
+export const OBJECT = ['Hadi ordan, uydurma!','Ne alakası var la?','Yok öyle bi şey, saçmalama!'];
+export const ASK_YOU = ['Peki sen nerdeydin dün gece?','Sen niye bu kadar üstüne gidiyon? Bi derdin mi var?'];
+export const YOU_ANSWER = [
+  { key:'home', label:'Evdeydim, uyuyordum', text:'Evdeydim la, mışıl mışıl uyuyodum.', v:1 },
+  { key:'barn', label:'Ahırdaydım', text:'Ahırdaydım, ineğin doğumu vardı.', v:0 },
+  { key:'angry', label:'Size ne!', text:'Size ne la! Hesap mı vereceğim?', v:-1 },
+];
+/* sanığın 3 adımlı savunması */
+export const DEFENSE_OPEN = [
+  { key:'witness', label:'Şahidim var', text:'Ben köylüyüm la! Dün gece evdeydim, {o} şahidim.' },
+  { key:'blame', label:'Asıl vampir o', text:'Beni bırakın, asıl vampir {o}! Gözlerine bakın gözlerine!' },
+  { key:'role', label:'Rolümü açıklıyorum', text:'Dinleyin beni: ben {role}! Beni asarsanız köy biter.' },
+  { key:'oath', label:'Yemin et', text:'Yemin ederim vampir değilim! Ekmek çarpsın, gözüm kör olsun!' },
+  { key:'beg', label:'Yalvar', text:'Yalvarırım asmayın! Çoluk çocuk sahibiyim, yazık bana!' },
+  { key:'threat', label:'Tehdit et', text:'Beni asarsanız rüyanıza girerim! Her gece ayak ucunuzda dururum!' },
+  { key:'silent', label:'Sus', text:'…' },
+];
+export const WITNESS_YES = ['Doğru diyo, yanımdaydı. Ben şahidim.','Evet, bütün gece benimleydi.'];
+export const WITNESS_NO = ['Ne alakası var la, ben onu görmedim bile!','Beni karıştırma! Ben evdeydim, sen yoktun!'];
+export const DEFENSE_Q = [
+  { q:'Madem masumsun, dün gece neden ışığın yanıyodu?', a:[
+    { label:'Kâbus gördüm', text:'Kâbus gördüm la, sabaha kadar uyuyamadım!', v:1 },
+    { label:'Hastaydım', text:'Ateşim vardı, hasta yatıyodum. Bakın hâlâ terliyom!', v:0 },
+    { label:'Size ne!', text:'Size ne la, benim evim benim ışığım!', v:-1 } ] },
+  { q:'Dün gece ahırın önünde ne arıyodun?', a:[
+    { label:'İnek kaçmıştı', text:'İnek kaçmıştı la, onu arıyodum!', v:1 },
+    { label:'Hava alıyodum', text:'Hava alıyodum, içim sıkıldı.', v:0 },
+    { label:'Ben orda değildim', text:'Ben orda değildim ki! Yanlış görmüşsünüz!', v:-1 } ] },
+  { q:'Ağzındaki o kırmızılık ne?', a:[
+    { label:'Pekmez yedim', text:'Pekmez yedim la pekmez! Koklayın isterseniz!', v:1 },
+    { label:'Domates yedim', text:'Sabah domates yedim, ondan.', v:0 },
+    { label:'Kırmızı mı?', text:'Kırmızı mı? Nerde? Yok bi şey!', v:-1 } ] },
+  { q:'Sabah cenazeye niye gelmedin?', a:[
+    { label:'Mezarı ben kazdım', text:'Mezarı ben kazdım la, ellerim hâlâ nasırlı!', v:1 },
+    { label:'Yatıyodum', text:'Uyuya kalmışım, yemin ederim.', v:0 },
+    { label:'Ölüyü sevmem', text:'Ben ölü sevmem, ne yapayım!', v:-1 } ] },
+];
+export const LAST_WORD = [
+  { key:'regret', label:'Pişman olursunuz', text:'Son sözüm: beni asarsanız pişman olursunuz!' },
+  { key:'warn', label:'Vampir aranızda', text:'Son sözüm: vampir aranızda, size gülüyo!' },
+  { key:'forgive', label:'Hakkımı helal ederim', text:'Son sözüm: hakkımı helal ediyom. Allah\'a emanet olun.' },
+];
+export const INTERVENE = { support:['Durun! Ben {t_e} kefilim, asmayın!','Bu adamı asarsanız günaha girersiniz, durun!'], refute:['İnanmayın, yalan söylüyo! Asın gitsin!','Hepsi palavra! Asın, ölmezse belli olur!'] };

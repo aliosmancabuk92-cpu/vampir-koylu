@@ -40,6 +40,7 @@
   .btn.blue{background:var(--blue)}
   .btn:disabled{opacity:.4;filter:none;transform:none;cursor:default}
   .btn.sm{padding:10px 14px;font-size:14px;width:auto;display:inline-block;margin:0}
+  .btn.sm.bt{padding:3px 8px;font-size:12px;border-radius:8px;vertical-align:middle}
   input{width:100%;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font:600 18px 'Nunito',sans-serif;outline:none;margin-top:8px}
   input:focus{border-color:var(--gold)}
   input.code{text-transform:uppercase;letter-spacing:8px;text-align:center;font-family:'Cinzel',serif;font-size:26px}
@@ -162,7 +163,7 @@
 <script type="module">
 import { createClient } from './supabase.js';
 import { mountSolo } from './solo.js';
-import { hostStart, hostHandle as mpHandle, newGameFields, createMultiUI, unlockAudio } from './multi.js';
+import { hostStart, hostHandle as mpHandle, newGameFields, createMultiUI, unlockAudio, MAX_PLAYERS, BOT_LEVELS, BOT_NAMES, BOT_NAMES_F } from './multi.js';
 
 /* ================== AYARLAR ================== */
 const SUPABASE_URL = 'https://jqbokjkswdkhvdeegfbh.supabase.co';
@@ -255,13 +256,17 @@ function hostHandle(a){
   switch(a.type){
     case 'hello': case 'join': {
       if(p){ p.connected=true; if(a.name) p.name=a.name; if(a.gender&&S.phase==='lobby') p.gender=a.gender==='f'?'f':'m'; }
-      else if(S.phase==='lobby'){ S.players.push({id:a.from, name:a.name||'Oyuncu', gender:a.gender==='f'?'f':'m', alive:true, role:null, connected:true}); log(`${a.name} katıldı.`); }
+      else if(S.phase==='lobby'){ if(S.players.length>=MAX_PLAYERS){ const b=[...S.players].reverse().find(x=>x.bot); if(b) S.players=S.players.filter(x=>x!==b); else break; } S.players.push({id:a.from, name:a.name||'Oyuncu', gender:a.gender==='f'?'f':'m', alive:true, role:null, connected:true}); log(`${a.name} katıldı.`); }
       else { /* oyun ortasında yeni oyuncu: izleyici olarak eklenmez, sadece state gönder */ }
       break;
     }
     case 'gender': { if(p && S.phase==='lobby') p.gender=a.g==='f'?'f':'m'; break; }
     case 'leave': { if(S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.from); else if(p) p.connected=false; break; }
     case 'kick': { if(a.from===S.hostId && S.phase==='lobby') S.players=S.players.filter(x=>x.id!==a.target); break; }
+    case 'addBot': { if(a.from!==S.hostId||S.phase!=='lobby') break; const n=Math.max(1,Math.min(+a.n||1, MAX_PLAYERS-S.players.length)); for(let i=0;i<n;i++) addBot(); break; }
+    case 'fillBots': { if(a.from!==S.hostId||S.phase!=='lobby') break; const to=Math.min(MAX_PLAYERS,Math.max(+a.to||8,S.players.length)); while(S.players.length<to) addBot(); break; }
+    case 'removeBot': { if(a.from!==S.hostId||S.phase!=='lobby') break; const b=a.target?P(S,a.target):[...S.players].reverse().find(x=>x.bot); if(b&&b.bot) S.players=S.players.filter(x=>x!==b); break; }
+    case 'botCfg': { if(a.from!==S.hostId||S.phase!=='lobby') break; const b=P(S,a.target); if(!b||!b.bot) break; if(a.gender) b.gender=a.gender==='f'?'f':'m'; if(a.level&&BOT_LEVELS[a.level]) b.level=a.level; if(a.allLevel&&BOT_LEVELS[a.allLevel]) S.players.forEach(x=>{ if(x.bot) x.level=a.allLevel; }); break; }
     case 'settings': { if(a.from===S.hostId && S.phase==='lobby') S.settings={...S.settings,...a.settings}; break; }
     case 'start': { if(a.from===S.hostId && S.phase==='lobby') hostStart(S); break; }
     case 'restart': { if(a.from===S.hostId) restart(); break; }
@@ -270,10 +275,13 @@ function hostHandle(a){
   broadcast();
 }
 function log(t){ S.log.unshift(t); S.log=S.log.slice(0,40); }
+function addBot(){ if(S.players.length>=MAX_PLAYERS) return; const used=new Set(S.players.map(p=>p.name)); const f=Math.random()<.25&&(S.settings.cast||'mixed')!=='male';
+  const pool=(f?BOT_NAMES_F:BOT_NAMES).filter(n=>!used.has(n)); const name=pool.length?pool[Math.floor(Math.random()*pool.length)]:'Bot'+(S.players.length+1);
+  const lv=S.players.find(x=>x.bot)?.level||'orta'; S.players.push({ id:'bot_'+Math.random().toString(36).slice(2,8), name, gender:f?'f':'m', alive:true, role:null, connected:true, bot:true, level:lv }); }
 
 function restart(){ clearTimeout(hostTimer); const gid=S.gameId; newGameFields(S); S.gameId=gid; S.players.forEach(p=>{ p.role=null; p.alive=true; p.fate=null; }); }
 let hostTimer=null;
-const mpCtx={ broadcast:()=>broadcast(), armTimer:(end,fn)=>{ clearTimeout(hostTimer); hostTimer=setTimeout(fn, Math.max(0,end-Date.now())+200); }, clearTimer:()=>clearTimeout(hostTimer) };
+const mpCtx={ broadcast:()=>broadcast(), armTimer:(end,fn)=>{ clearTimeout(hostTimer); hostTimer=setTimeout(fn, Math.max(0,end-Date.now())+200); }, clearTimer:()=>clearTimeout(hostTimer), later:(ms,fn)=>setTimeout(()=>{ try{ fn(); }catch(e){ console.error(e); } },ms) };
 const mpUI=createMultiUI({ app, esc, voice, send:(a)=>send(a), toast, isHost:()=>isHost, meId:()=>me.id, onLeave:()=>leaveRoom() });
 function leaveRoom(){ send({type:'leave'}); if(channel){supabase.removeChannel(channel);channel=null;} S=null; isHost=false; mpUI.reset(); screen='mode'; render(); }
 
@@ -388,8 +396,11 @@ function viewLobby(){
     <div class="codebox"><div style="font-size:12px;color:var(--muted);font-weight:800;letter-spacing:2px">ODA KODU</div><div class="c">${S.code}</div><div style="font-size:13px;color:var(--muted)">Arkadaşların bu kodla katılsın</div></div>
     <div class="card">
       <div class="row"><h2>Oyuncular</h2><span style="text-align:right;color:var(--muted);font-weight:800">${n} kişi</span></div>
-      <ul class="plist">${S.players.map(p=>`<li class="${p.id===me.id?'me':''}">${avatar(p)}<span class="nm">${esc(p.name)} <span title="karakter">${(S.settings.cast||'mixed')==='male'||p.gender!=='f'?'👨':'👩'}</span>${p.id===S.hostId?' <span class="tag">· anlatıcı</span>':''}</span>${isHost&&p.id!==me.id?`<button class="btn sm sec" data-kick="${p.id}">Çıkar</button>`:`<span class="dot ${p.connected?'':'off'}"></span>`}</li>`).join('')}</ul>
-      <p class="note">${n>=MIN_PLAYERS?`${n} kişi: <b>${rc.vampir} vampir</b>, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`:`Başlamak için en az ${MIN_PLAYERS} kişi gerekli (${MIN_PLAYERS-n} kişi daha).`}</p>
+      <ul class="plist">${S.players.map(p=>`<li class="${p.id===me.id?'me':''}">${p.bot?'<span class="av">🤖</span>':avatar(p)}<span class="nm">${esc(p.name)} ${p.bot&&isHost&&(S.settings.cast||'mixed')!=='male'?`<button class="btn sm sec bt" data-bg="${p.id}">${p.gender==='f'?'👩':'👨'}</button>`:`<span title="karakter">${(S.settings.cast||'mixed')==='male'||p.gender!=='f'?'👨':'👩'}</span>`}${p.bot?(isHost?` <button class="btn sm sec bt" data-bl="${p.id}">${BOT_LEVELS[p.level||'orta'].label}</button>`:` <span class="tag">· bot · ${BOT_LEVELS[p.level||'orta'].label}</span>`):''}${p.id===S.hostId?' <span class="tag">· anlatıcı</span>':''}</span>${isHost&&p.id!==me.id?`<button class="btn sm sec" data-kick="${p.id}">Çıkar</button>`:`<span class="dot ${p.connected?'':'off'}"></span>`}</li>`).join('')}</ul>
+      ${isHost?`<div class="row" style="margin-top:6px"><button class="btn sm" id="bBotAdd" ${n>=MAX_PLAYERS?'disabled':''}>＋ Bot ekle</button><button class="btn sm sec" id="bBotDel" ${S.players.some(p=>p.bot)?'':'disabled'}>－ Bot çıkar</button></div>
+      <div class="row" style="margin-top:6px"><button class="btn sm gold" data-fill="8" ${n>=8?'disabled':''}>🤖 8 kişiye tamamla</button><button class="btn sm gold" data-fill="12" ${n>=12?'disabled':''}>🤖 12'ye</button><button class="btn sm gold" data-fill="16" ${n>=16?'disabled':''}>🤖 16'ya</button></div>
+      ${S.players.some(p=>p.bot)?`<div class="row" style="margin-top:6px"><span class="note" style="margin:0">Tüm botlar:</span>${Object.entries(BOT_LEVELS).map(([k,v])=>`<button class="btn sm sec" data-ball="${k}">${v.label}</button>`).join('')}</div>`:''}`:''}
+      <p class="note">${n>=MIN_PLAYERS?`${n} kişi: <b>${rc.vampir} vampir</b>, 1 doktor, 1 kâhin, ${rc.koylu} köylü.`:`Başlamak için en az ${MIN_PLAYERS} kişi gerekli (${MIN_PLAYERS-n} kişi daha${isHost?' — bot ekleyebilirsin':''}).`} En fazla ${MAX_PLAYERS} kişi.</p>
     </div>
     <div class="card">
       <h2 style="font-size:16px">Karakterin</h2>
@@ -419,6 +430,11 @@ function bindGame(mine){
   q('#bStart')&&(q('#bStart').onclick=()=>{ unlockAudio(); saveSettings(); send({type:'start'}); });
   q('#bLeave')&&(q('#bLeave').onclick=()=>leaveRoom());
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>send({type:'kick',target:b.dataset.kick}));
+  q('#bBotAdd')&&(q('#bBotAdd').onclick=()=>send({type:'addBot',n:1})); q('#bBotDel')&&(q('#bBotDel').onclick=()=>send({type:'removeBot'}));
+  document.querySelectorAll('[data-fill]').forEach(b=>b.onclick=()=>send({type:'fillBots',to:+b.dataset.fill}));
+  document.querySelectorAll('[data-bg]').forEach(b=>b.onclick=()=>{ const p=P(S,b.dataset.bg); send({type:'botCfg',target:b.dataset.bg,gender:p&&p.gender==='f'?'m':'f'}); });
+  document.querySelectorAll('[data-bl]').forEach(b=>b.onclick=()=>{ const p=P(S,b.dataset.bl); const ks=Object.keys(BOT_LEVELS); const i=ks.indexOf(p?.level||'orta'); send({type:'botCfg',target:b.dataset.bl,level:ks[(i+1)%ks.length]}); });
+  document.querySelectorAll('[data-ball]').forEach(b=>b.onclick=()=>send({type:'botCfg',target:(S.players.find(x=>x.bot)||{}).id,allLevel:b.dataset.ball}));
   document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{ me.gender=b.dataset.g; localStorage.setItem('vk_gender',me.gender); send({type:'gender',g:me.gender}); });
   document.querySelectorAll('[data-cast]').forEach(b=>b.onclick=()=>send({type:'settings',settings:{cast:b.dataset.cast}}));
 }

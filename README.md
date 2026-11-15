@@ -5,21 +5,29 @@ Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir
 
 ## Modlar
 - **Tek Oyna**: botlara karşı, 4 bölüm / 24 seviye, yıldız + XP + rütbe, serbest oyun, istatistik. İnternet gerekmez; ilerleme telefonda saklanır.
-- **Arkadaşlarla Oyna**: Supabase Realtime ile odalı çok oyunculu.
+- **Arkadaşlarla Oyna**: Supabase Realtime ile odalı çok oyunculu. Oda en fazla 16 kişi; kaç arkadaş gelirse gelsin oda sahibi istediği kadar bot ekleyebilir (cinsiyet ve kolay/orta/zor seviye seçilebilir, "8/12/16'ya tamamla"). Arkadaş katılınca oda doluysa bir botun yerine geçer.
 
 ## 3B sürüm (sinematik köy)
 - `src/world/world.js` — three.js köy dünyası: gökyüzü ve ışık evreleri (gündüz/akşam/gece/şafak/kıyamet/bayram), Anadolu evleri, meydan, çeşme, dar ağacı, kazıklar, meşaleler, ağaçlar, parçacıklar, kamera yönetmeni, etiketler, kalite ayarı
 - `src/world/houses.js` — prosedürel Anadolu evleri (taş damlı, cumbalı konak, kerpiç, iki katlı, ahırlı…)
 - `src/world/people.js` — gerçek oranlı köylüler (gövde + köylü kıyafeti + bıyık/kasket/takke/kalpak), yürüme, baş çevirme, asılma/kazık pozları
-- `src/world/director.js` — oyun olaylarını 3B sahnelere çeviren yönetmen (toplanma, eve dağılma, evden sürükleme, savunma çekimleri, asma, tekme, kazık, gece baskını, köy hafızası)
+- `src/world/director.js` — oyun olaylarını 3B sahnelere çeviren yönetmen (toplanma, eve dağılma, kapı kırma baskını, savunma çekimleri, darağacı, arkadan tekme, yüzüstü kazık, gece baskını, vampir kovalamacası, köy şenliği/halay)
+- `src/scenes.js` — tek oyunculu ve odalı modun ortak sahne senaryoları (kapı baskını varyantları, infaz, kazık, final sahneleri)
+- `src/bots.js` — odalı modda botların beyni (şüphe haritası, konuşma, savunma, oy, gece hamlesi; kolay/orta/zor)
+- `src/world/animals.js` — prosedürel tavuklar (eşelenme, kaçışma, kanat çırpma)
+- `src/world/hands.json` — parmak pozları (gevşek, yumruk, işaret, açık, kavrama)
 - `src/stage3d.js` / `src/stage-prefs.js` — 3B katman (tembel yüklenir) ve tercihler (3B/2B, kalite)
 - `src/voice.js` — önceden kaydedilmiş replikleri karakter ses rengiyle çalar; kayıt yoksa cihaz sesine düşer
 - `tools/voice-collect.mjs` → (Chatterbox, `/home/claude/tts/gen_batch.py`) → `tools/voice-install.py` → `tools/voice-female.sh` — tüm replikleri topla, doğal Türkçe sesle seslendir, oyuna kur, kadın sesini türet (eski yol: `tools/voice-gen.py` Piper)
-- `/home/claude/mocap/build_clips.py` — CMU hareket verisini iskeletimize aktarıp `www/assets/3d/anim/mocap.glb` + `mocap_meta.json` üretir
+- `tools/mocap/build_clips.py` — CMU hareket verisini iskeletimize aktarıp `www/assets/3d/anim/mocap.glb` + `mocap_meta.json` üretir (57 klip)
+- `tools/music-synth.py` — özgün şenlik havası ve kovalamaca müziğini tamamen kodla sentezler (`www/assets/sfx/music_*.mp3`)
+- `tools/voice-fx.mjs` → `tools/voice-fx.json` — vampir/tok/tiz gibi özel ses renklerini satır bazında işaretler; `voice-install.py` bunları ffmpeg ile uygular
 
 Sesleri yeniden üretmek (replik eklenince):
 ```bash
-node tools/voice-collect.mjs && python3 tools/voice-gen.py && tools/voice-female.sh
+node tools/voice-collect.mjs && node tools/voice-fx.mjs
+# Chatterbox ile eksik satırları üret (/home/claude/tts/tts_loop.sh tools/voice-lines.json out ref_villager.wav)
+python3 tools/voice-install.py && tools/voice-female.sh
 ```
 
 ## Klasörler

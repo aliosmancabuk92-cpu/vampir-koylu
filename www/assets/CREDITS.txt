@@ -8,4 +8,8 @@ Seslendirme: Chatterbox Multilingual TTS (Resemble AI, MIT lisansı) ile üretil
   ticari olmayan / özel test kullanımı içindir. Mağaza yayınından önce kendi kaydedilmiş referans sesimizle yeniden üretilmeli.
 Kalabalık sesleri (gülüşme, şaşırma, tezahürat): aynı yöntemle üretildi.
 Ses efektleri: Web Audio ile kodla sentezlendi.
+Oyun havası ve kovalamaca müziği: bu proje için özgün olarak bestelendi; zurna, klarnet, bağlama, davul ve darbuka
+  sesleri tamamen kodla sentezlendi (tools/music-synth.py). Herhangi bir kayıt ya da mevcut şarkı kullanılmadı.
+Dans, kaçış, emekleme, yere düşüp kalkma, tek ayak sekme, sinsi yürüyüş ve yaşa/karaktere göre yürüyüş tarzları da
+  CMU Motion Capture Database kayıtlarından aktarıldı.
 Three.js (MIT)

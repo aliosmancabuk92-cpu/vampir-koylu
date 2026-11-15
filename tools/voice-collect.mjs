@@ -22,12 +22,13 @@ function play(g,r){
       case 'roles': g.ackRole(); break;
       case 'night': { const c=g.needs.cands; g.nightAction(c[Math.floor(r()*c.length)]); break; }
       case 'dawn': g.startTalk(); break;
-      case 'talk': { const o=g.humanOptions(); const pick=o[Math.floor(r()*o.length)]; const t=al[Math.floor(r()*al.length)];
+      case 'talk': { if(g.needs?.type==='answer'){ const o=g.needs.options; g.answer(o[Math.floor(r()*o.length)].key); break; } const o=g.humanOptions(); const pick=o[Math.floor(r()*o.length)]; const t=al[Math.floor(r()*al.length)];
         if(pick.type==='claimSeer'){ const x=pick.results[Math.floor(r()*pick.results.length)]; g.talkAction({type:'claimSeer',target:x.target,isVamp:x.isVamp}); }
-        else if(pick.type==='accuse'||pick.type==='defend') g.talkAction({type:pick.type,target:t.id}); else g.talkAction({type:pick.type}); break; }
+        else if(pick.reasons) g.talkAction({type:pick.type,target:t.id,reason:pick.reasons[Math.floor(r()*pick.reasons.length)].key});
+        else if(pick.targets) g.talkAction({type:pick.type,target:t.id}); else g.talkAction({type:pick.type}); break; }
       case 'select': { const c=g.needs.cands; g.selectHouse(c[Math.floor(r()*c.length)]); break; }
-      case 'defense': { const keys=g.needs.options.map(o=>o.key); const k=keys[Math.floor(r()*keys.length)]; if(k==='blame'){ const t=g.needs.targets; g.defend('blame',t[Math.floor(r()*t.length)]); } else g.defend(k); break; }
-      case 'final': g.finalVote(r()<.6?'hang':'release'); break;
+      case 'defense': { const keys=g.needs.options.map(o=>o.key); const k=keys[Math.floor(r()*keys.length)]; if((k==='blame'||k==='witness')&&g.needs.targets){ const t=g.needs.targets; g.defend(k,t[Math.floor(r()*t.length)]); } else g.defend(k); break; }
+      case 'final': if(r()<.3) g.intervene(r()<.5?'support':'refute'); g.finalVote(r()<.6?'hang':'release'); break;
       case 'verdict': g.nextNight(); break;
       default: throw new Error('faz '+g.phase);
     }
@@ -55,21 +56,25 @@ for(const hard of [true,false]){ LN.setHardMode(hard);
   for(let gi=0; gi<300; gi++){
     let seed=gi*977+(hard?3:5); const R=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }; const pk=(a)=>a[Math.floor(R()*a.length)];
     const _rnd=Math.random; Math.random=R;
-    const n=4+(gi%9); const S={ code:'TEST', hostId:'p0', players:[...Array(n)].map((_,i)=>({ id:'p'+i, name:'Oyuncu'+i, alive:true, connected:true, gender:i%3===0?'f':'m' })), settings:{ discussionSec:120, voteSec:60, cast:gi%2?'mixed':'male' }, log:[] };
+    const n=4+(gi%9); const S={ code:'TEST', hostId:'p0', players:[...Array(n)].map((_,i)=>({ id:(i>=2&&gi%2?'bot':'p')+i, name:'Oyuncu'+i, alive:true, connected:true, gender:i%3===0?'f':'m', bot:i>=2&&gi%2===1, level:'orta' })), settings:{ discussionSec:120, voteSec:60, cast:gi%2?'mixed':'male' }, log:[] };
     MP.newGameFields(S); MP.hostStart(S);
-    const ctx={ broadcast(){}, armTimer(){}, clearTimer(){} };
+    const Q=[]; const ctx={ broadcast(){}, armTimer(){}, clearTimer(){}, later(ms,fn){ Q.push(fn); } };
     const grab=()=>{ for(const e of S.evs||[]) if((e.t==='say'||e.t==='narr') && e.kind!=='quiet') add(e.voice||e.text); };
     const H=(a)=>{ MP.hostHandle(S,a,ctx); grab(); };
     let guard=0;
-    while(S.phase!=='end' && guard++<300){
-      const al=S.players.filter(p=>p.alive);
+    while(S.phase!=="end" && guard++<1200){
+      const al=S.players.filter(p=>p.alive&&!p.bot);
+      if(Q.length){ Q.shift()(); grab(); continue; }
       switch(S.phase){
         case 'roles': for(const p of S.players) H({type:'ackRole',from:p.id}); break;
-        case 'opening': case 'discussion': case 'verdict': case 'dawn': H({type:'next',from:'p0'}); break;
-        case 'select': for(const p of al){ const c=al.filter(x=>x!==p); H({type:'select',from:p.id,target:pk(c).id}); if(S.phase!=='select') break; } break;
-        case 'defense': { const k=pk(['innocent','blame','role','silent']); const o=al.filter(x=>x.id!==S.accused); H({type:'defense',from:S.accused,key:k,target:pk(o).id,role:pk(['koylu','doktor','kahin'])}); break; }
-        case 'final': for(const p of al){ if(p.id===S.accused) continue; H({type:'final',from:p.id,v:R()<.6?'hang':'release'}); if(S.phase!=='final') break; } if(S.phase==='final') H({type:'next',from:'p0'}); break;
-        case 'night': { for(const p of al){ const c=al.filter(x=>x!==p && (p.role!=='vampir'||x.role!=='vampir')); if(['vampir','doktor','kahin'].includes(p.role) && c.length) H({type:'night',from:p.id,target:pk(c).id}); if(S.phase!=='night') break; } if(S.phase==='night') H({type:'next',from:'p0'}); break; }
+        case 'discussion': { const h=al[0]; if(h){ const o=S.players.filter(x=>x.alive&&x!==h); H({type:'talk',from:h.id,kind:pk(['accuse','defend','press','ally','calm','oath']),target:pk(o).id,reason:pk(['night','quiet','pushed','gut','lie','alibi','seer','accuser','vouch'])}); } H({type:'next',from:'p0'}); break; }
+        case 'opening': case 'verdict': case 'dawn': H({type:'next',from:'p0'}); break;
+        case 'select': { for(const p of al){ const c=S.players.filter(x=>x.alive&&x!==p); H({type:'select',from:p.id,target:pk(c).id}); if(S.phase!=='select') break; } if(S.phase==='select'&&!Q.length) H({type:'next',from:'p0'}); break; }
+        case 'defense': { const acc=S.players.find(x=>x.id===S.accused); if(acc.bot){ H({type:'next',from:'p0'}); break; } const o=S.players.filter(x=>x.alive&&x.id!==S.accused);
+          if(S.defStep===2) H({type:'defense',from:S.accused,i:Math.floor(R()*3)}); else if(S.defStep===3) H({type:'defense',from:S.accused,key:pk(['regret','warn','forgive'])});
+          else H({type:'defense',from:S.accused,key:pk(['witness','blame','role','oath','beg','threat','silent']),target:pk(o).id,role:pk(['koylu','doktor','kahin'])}); break; }
+        case 'final': for(const p of al){ if(p.id===S.accused) continue; if(R()<.3) H({type:'intervene',from:p.id,kind:pk(['support','refute'])}); H({type:'final',from:p.id,v:R()<.6?'hang':'release'}); if(S.phase!=='final') break; } if(S.phase==='final'&&!Q.length) H({type:'next',from:'p0'}); break;
+        case 'night': { for(const p of al){ const c=S.players.filter(x=>x.alive).filter(x=>x!==p && (p.role!=='vampir'||x.role!=='vampir')); if(['vampir','doktor','kahin'].includes(p.role) && c.length) H({type:'night',from:p.id,target:pk(c).id}); if(S.phase!=='night') break; } if(S.phase==='night') H({type:'next',from:'p0'}); break; }
         default: H({type:'next',from:'p0'});
       }
     }

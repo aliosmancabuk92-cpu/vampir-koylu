@@ -55,7 +55,8 @@ await clickSel(pg.Ali,'#mNext'); // seçime geç
 for(const n of names){ await until(pg[n],'#mSel'); await chip(pg[n], n===vil?vamp:vil); await clickSel(pg[n],'#mSel'); }
 log('Gün 1 seçim yapıldı →', vil);
 await until(pg[vil],'[data-def]'); await pg[vil].screenshot({path:path.join(shotDir,'mp02-defense.png')}); for(const n of R3D) if(pg[n]) await pg[n].screenshot({path:path.join(shotDir,`mp02-3d-${n}.png`)});
-await clickSel(pg[vil],'[data-def="innocent"]'); await chip(pg[vil], seer); await clickSel(pg[vil],'#mDefGo'); log('Savunma yapıldı');
+async function defSteps(p){ await until(p,'[data-dq]'); await p.screenshot({path:path.join(shotDir,'mp02b-question.png')}); await clickSel(p,'[data-dq]'); await until(p,'[data-dl]'); await clickSel(p,'[data-dl]'); }
+await clickSel(pg[vil],'[data-def="witness"]'); await chip(pg[vil], seer); await clickSel(pg[vil],'#mDefGo'); await defSteps(pg[vil]); log('Savunma yapıldı (şahit + soru + son söz)');
 for(const n of names.filter(x=>x!==vil)){ await until(pg[n],'[data-fv]'); await clickSel(pg[n],'[data-fv="release"]'); await sleep(100); await clickSel(pg[n],'#mLock'); }
 await pg[seer].screenshot({path:path.join(shotDir,'mp03-final.png')});
 for(const n of names) await untilText(pg[n],'Bırakıldı');
@@ -72,7 +73,7 @@ await untilText(pg.Ali,'Meydana toplan'); await clickSel(pg.Ali,'#mNext'); // ta
 await untilText(pg.Ali,'Seçime geç'); await clickSel(pg.Ali,'#mNext'); // seçim
 // GÜN 2: herkes vampiri seçer → AS → kazık → köylüler kazanır
 for(const n of names){ await until(pg[n],'#mSel'); await chip(pg[n], n===vamp?vil:vamp); await clickSel(pg[n],'#mSel'); }
-await until(pg[vamp],'[data-def]'); await clickSel(pg[vamp],'[data-def="role"]'); await until(pg[vamp],'[data-claimr]'); await clickSel(pg[vamp],'[data-claimr="kahin"]'); log('Vampir kâhinim dedi');
+await until(pg[vamp],'[data-def]'); await clickSel(pg[vamp],'[data-def="role"]'); await until(pg[vamp],'[data-claimr]'); await clickSel(pg[vamp],'[data-claimr="kahin"]'); await defSteps(pg[vamp]); log('Vampir kâhinim dedi');
 for(const n of names.filter(x=>x!==vamp)){ await until(pg[n],'[data-fv]'); await clickSel(pg[n],'[data-fv="hang"]'); await sleep(100); await clickSel(pg[n],'#mLock'); }
 // kazık anını yakala (Geç'e basmadan)
 { const watch=R3D.find(n=>pg[n])||seer; for(let k=0;k<200;k++){ const t=await text(pg[watch]); if(/Gıpraşma|süzgeç|Bağır bağır|Tutun ayak|son tahtın/.test(t)){ await sleep(2500); await pg[watch].screenshot({path:path.join(shotDir,'mp04-impale.png')}); break; } await sleep(300); } }

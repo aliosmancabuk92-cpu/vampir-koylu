@@ -20,7 +20,7 @@ function clip(key){
   loading.set(key,p); return p;
 }
 /** Sıradaki repliklerin seslerini önceden indir */
-const isFem=(e)=>e.t==='say' && /^kadin/.test(e.arch||'');
+const isFem=(e)=>e.t==='say' && /^kadin/.test(e.arch||'') && !(typeof window!=='undefined' && window.VK_NO_FEM);
 const pathOf=(e,k)=>(isFem(e)?'f/':'')+k;
 export function prefetchLines(events){ if(!manifest) return; let n=0; for(const e of events){ if(e.t!=='say'&&e.t!=='narr') continue; const k=voiceKey(e.voice||e.text); if(manifest[k]) clip(pathOf(e,k)); if(++n>=6) break; } }
 
@@ -39,6 +39,7 @@ const FX={
   bekci:    { rate:.96, low:3,  high:-1, rev:.14 },
   demirci:  { rate:.92, low:5,  high:-1, rev:.12 },
   deli:     { rate:1.08,low:-1, high:3,  rev:.10 },
+  kufurbaz: { rate:.99, low:4,  high:1,  rev:.10 },
   player:   { rate:1.02,low:1,  high:0,  rev:.10 },
   kadin1:   { rate:1.0, low:-2, high:1,  rev:.12 },
   kadin2:   { rate:1.04,low:-2, high:2,  rev:.12 },
@@ -70,7 +71,8 @@ export function createSpeaker(voice){
     const key=voiceKey(text);
     const ctx=audioCtx();
     if(!manifest[key] || !ctx) return deviceTTS(e,text,{ skipping, wait, hold });
-    const buf=await Promise.race([clip(pathOf(e,key)), new Promise(r=>setTimeout(()=>r(null),3000))]);
+    // kadın sürümü yoksa erkek kaydına (kadın ses rengiyle) düş
+    const buf=await Promise.race([clip(pathOf(e,key)).then(b=>b||(isFem(e)?clip(key):null)), new Promise(r=>setTimeout(()=>r(null),3000))]);
     if(skipping()) return;
     if(!buf) return deviceTTS(e,text,{ skipping, wait, hold });
     const fx=FX[e.t==='narr'?'narr':(e.arch||'player')]||FX.player; const scream=e.kind==='scream';
@@ -78,7 +80,8 @@ export function createSpeaker(voice){
     const lo=ctx.createBiquadFilter(); lo.type='lowshelf'; lo.frequency.value=220; lo.gain.value=fx.low;
     const hi=ctx.createBiquadFilter(); hi.type='highshelf'; hi.frequency.value=3200; hi.gain.value=fx.high;
     const g=ctx.createGain(); g.gain.value=scream?1.0:0.95; const wet=ctx.createGain(); wet.gain.value=fx.rev;
-    src.connect(lo); lo.connect(hi); hi.connect(g); g.connect(audioOut()); hi.connect(wet); wet.connect(reverb(ctx));
+    if(e.kind==='inside'){ const m=ctx.createBiquadFilter(); m.type='lowpass'; m.frequency.value=780; m.Q.value=0.7; src.connect(m); m.connect(lo); g.gain.value=1.15; } else src.connect(lo);
+    lo.connect(hi); hi.connect(g); g.connect(audioOut()); hi.connect(wet); wet.connect(reverb(ctx));
     const tr=trimInfo(buf); const rate=src.playbackRate.value;
     return new Promise(res=>{ let done=false, ended=false; let release=()=>{};
       // söz, konuşma bitince (sondaki sessizliği beklemeden) çözülür; ses kendi bitince temizlenir

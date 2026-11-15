@@ -17,6 +17,37 @@ const SAMPLES=['laugh','gasp','cheer']; const sbuf=new Map(); let preP=null;
 function preload(){ if(preP) return preP; const c=AC(); if(!c) return null; preP=Promise.all(SAMPLES.map(n=>fetch('./assets/sfx/'+n+'.mp3').then(r=>r.ok?r.arrayBuffer():null).then(ab=>ab?new Promise(res=>c.decodeAudioData(ab,res,()=>res(null))):null).then(b=>{ if(b) sbuf.set(n,b); }).catch(()=>{}))); return preP; }
 function sample(n,vol=.9){ const c=AC(); if(!c||!enabled) return false; preload(); const b=sbuf.get(n); if(!b) return false; const s=c.createBufferSource(); s.buffer=b; s.playbackRate.value=rnd(.96,1.04); const g=c.createGain(); g.gain.value=vol; s.connect(g).connect(master); s.start(); return true; }
 
+
+/* ---- v4: kapı, tükürük, emme, geğirme, hayvanlar, müzik, ortam ---- */
+function chirp(t,f,dur,peak,up=1.4){ const c=AC(); const o=c.createOscillator(); const g=c.createGain(); o.type='sine'; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*up,t+dur*.6); o.frequency.exponentialRampToValueAtTime(f*0.9,t+dur); env(g,t,.005,dur*.3,.5,dur*.6,peak); o.connect(g).connect(master); o.start(t); o.stop(t+dur+.05); }
+const music={ cur:null, buf:new Map() };
+function loadMusic(n){ const c=AC(); if(!c) return Promise.resolve(null); if(music.buf.has(n)) return Promise.resolve(music.buf.get(n));
+  return fetch('./assets/sfx/music_'+n+'.mp3').then(r=>r.ok?r.arrayBuffer():null).then(ab=>ab?new Promise(res=>c.decodeAudioData(ab,res,()=>res(null))):null).then(b=>{ if(b) music.buf.set(n,b); return b; }).catch(()=>null); }
+let amb=null;
+const SFX2 = {
+  knockDoor(n=3){ const c=AC(); if(!c||!enabled) return; for(let i=0;i<n;i++){ const t=c.currentTime+i*rnd(.17,.24); thump(t,140,60,.65,.18); knock(t,rnd(180,240),.55); burst(t,.05,'bandpass',700,1.5,.25); } },
+  doorThunk(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; thump(t,110,48,1,.3); knock(t,150,.7); burst(t,.08,'lowpass',600,.7,.4); },
+  spit(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; burst(t,.09,'highpass',2500,.6,.35); burst(t+.03,.05,'bandpass',1200,3,.25); },
+  slurp(dur=2.2){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; const n=Math.round(dur/.42); for(let i=0;i<n;i++){ const s=t+i*.42+rnd(0,.06); const nz=noise(.36); const f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.setValueAtTime(rnd(500,700),s); f.frequency.exponentialRampToValueAtTime(rnd(1400,1900),s+.3); f.Q.value=3; const g=c.createGain(); env(g,s,.04,.12,.6,.18,.5); nz.connect(f).connect(g).connect(master); nz.start(s); thump(s+.3,90,50,.25,.12); } },
+  burp(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; const o=c.createOscillator(); const g=c.createGain(); const f=c.createBiquadFilter(); o.type='sawtooth'; o.frequency.setValueAtTime(95,t); o.frequency.linearRampToValueAtTime(70,t+.55); f.type='bandpass'; f.frequency.value=380; f.Q.value=2.5;
+    const lfo=c.createOscillator(); const lg=c.createGain(); lfo.frequency.value=28; lg.gain.value=0.5; lfo.connect(lg).connect(g.gain); env(g,t,.03,.15,.8,.4,.7); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t+.7); lfo.start(t); lfo.stop(t+.7); },
+  cluck(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; for(let i=0;i<4;i++){ const s=t+i*rnd(.09,.16); chirp(s,rnd(480,640),rnd(.07,.11),.35,rnd(1.6,2.4)); burst(s,.04,'bandpass',1800,2,.12); } },
+  squawk(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; for(let i=0;i<3;i++) chirp(t+i*.13,rnd(700,950),.16,.45,rnd(1.8,2.6)); SFX2.flap(); },
+  flap(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; for(let i=0;i<7;i++) burst(t+i*.07,.05,'lowpass',rnd(700,1100),.7,.3); },
+  bats(dur=2.0){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; for(let i=0;i<Math.round(dur*14);i++) burst(t+rnd(0,dur),.04,'bandpass',rnd(900,1600),1.2,.18); for(let i=0;i<10;i++) chirp(t+rnd(0,dur),rnd(3500,5200),.05,.12,1.3); },
+  birds(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; for(let i=0;i<14;i++) chirp(t+rnd(0,1.6),rnd(2200,3800),rnd(.05,.12),.18,rnd(1.2,1.8)); SFX2.flap(); },
+  bark(n=2){ const c=AC(); if(!c||!enabled) return; for(let i=0;i<n;i++){ const t=c.currentTime+i*rnd(.3,.45); const o=c.createOscillator(); const g=c.createGain(); const f=c.createBiquadFilter(); o.type='sawtooth'; o.frequency.setValueAtTime(rnd(300,380),t); o.frequency.exponentialRampToValueAtTime(rnd(160,200),t+.14); f.type='bandpass'; f.frequency.value=900; f.Q.value=1.2; env(g,t,.005,.05,.5,.1,.35); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t+.25); burst(t,.08,'bandpass',1500,1,.15); } },
+  slap(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; burst(t,.06,'highpass',1600,.6,.7); thump(t,220,90,.4,.08); },
+  whoosh(){ const c=AC(); if(!c||!enabled) return; const t=c.currentTime; const nz=noise(.45); const f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.setValueAtTime(300,t); f.frequency.exponentialRampToValueAtTime(2200,t+.3); f.Q.value=1; const g=c.createGain(); env(g,t,.12,.1,.6,.2,.35); nz.connect(f).connect(g).connect(master); nz.start(t); },
+  /** müzik: 'party' | 'chase' (döngü) */
+  music(n,{ vol=.55, loop=true }={}){ const c=AC(); if(!c) return; SFX2.stopMusic(0.3); const my={ n }; music.cur=my;
+    loadMusic(n).then(b=>{ if(!b||music.cur!==my||!enabled) return; const s=c.createBufferSource(); s.buffer=b; s.loop=loop; const g=c.createGain(); g.gain.setValueAtTime(0,c.currentTime); g.gain.linearRampToValueAtTime(vol,c.currentTime+.6); s.connect(g).connect(master); s.start(); my.s=s; my.g=g; }); },
+  stopMusic(fade=1.2){ const c=AC(); const m=music.cur; music.cur=null; if(!c||!m||!m.s) return; const t=c.currentTime; try{ m.g.gain.cancelScheduledValues(t); m.g.gain.setValueAtTime(m.g.gain.value,t); m.g.gain.linearRampToValueAtTime(0,t+fade); m.s.stop(t+fade+.05); }catch(e){} },
+  /** ortam sesi: 'day' | 'night' | null */
+  ambient(kind){ if(amb&&amb.kind===kind) return; if(amb){ clearInterval(amb.iv); amb=null; } if(!kind) return; const iv=setInterval(()=>{ if(!enabled||!ctx||ctx.state!=='running') return;
+      if(kind==='day'){ if(Math.random()<.45) chirp(ctx.currentTime,rnd(2400,3600),rnd(.06,.1),.06,rnd(1.2,1.6)); if(Math.random()<.18){ const t=ctx.currentTime; for(let i=0;i<3;i++) chirp(t+i*.12,rnd(2600,3200),.08,.05,1.5); } }
+      else { const t=ctx.currentTime; for(let i=0;i<3;i++){ const o=ctx.createOscillator(); const g=ctx.createGain(); o.type='square'; o.frequency.value=rnd(4200,4700); env(g,t+i*.05,.004,.01,.4,.02,.012); o.connect(g).connect(master); o.start(t+i*.05); o.stop(t+i*.05+.05); } if(Math.random()<.04) SFX.owl(); if(Math.random()<.02) SFX2.bark(2); } },700); amb={ kind, iv }; },
+};
 const SFX = {
   /* davul vuruşu */
   drum(n=1, gap=.35){ const c=AC(); if(!c||!enabled) return; for(let i=0;i<n;i++){ const t=c.currentTime+i*gap; const o=c.createOscillator(); const g=c.createGain(); o.type='sine'; o.frequency.setValueAtTime(140,t); o.frequency.exponentialRampToValueAtTime(45,t+.25); env(g,t,.005,.1,.4,.25,.9); o.connect(g).connect(master); o.start(t); o.stop(t+.5); const nz=noise(.08); const ng=c.createGain(); env(ng,t,.002,.03,.2,.05,.3); nz.connect(ng).connect(master); nz.start(t); } },
@@ -58,7 +89,8 @@ const SFX = {
   /* kalabalık sesleri: kayıt varsa onu çal (gülüşme, şaşırma, tezahürat) */
   laugh(){ sample('laugh')||SFX.cheer(); },
   gasp(){ sample('gasp')||burstGasp(); },
-  set(on){ enabled=on; }, get enabled(){ return enabled; }, unlock(){ AC(); preload(); },
+  ...SFX2,
+  set(on){ enabled=on; if(!on) SFX2.stopMusic(0.2); }, get enabled(){ return enabled; }, unlock(){ AC(); preload(); },
 };
 export default SFX;
 /** Ortak ses bağlamı (seslendirme de bunu kullanır) */

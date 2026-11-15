@@ -93,14 +93,14 @@ export function mountSolo(ctx){
 
   /* ================= OYUN (köy sahnesi) ================= */
   let endFolded=false; const speaker=createSpeaker(voice); loadVoices();
-  let V=null, SC=null, D=null, is3d=false, cursor=0, sel=null, finalChoice=null, talkMode=null, defMode=null, shownLines=[];
+  let V=null, SC=null, D=null, is3d=false, cursor=0, sel=null, finalChoice=null, talkMode=null, talkReason=false, defMode=null, shownLines=[];
   async function startGame(L){
     SFX.unlock();
     level=L; const longIntro=!save.seenIntro;
     const hn=(localStorage.getItem('vk_name')||'').trim()||'Oyuncu';
     G=new SoloGame(L,{rng:makeRng((Date.now()^(typeof L.id==='number'?L.id*2654435761:7))>>>0), humanName:hn, longIntro});
     if(longIntro){ save.seenIntro=true; persist(); }
-    cursor=0; sel=null; finalChoice=null; talkMode=null; defMode=null; pendingXp=null; shownLines=[]; screen='game'; endFolded=false;
+    cursor=0; sel=null; finalChoice=null; talkMode=null; talkReason=false; defMode=null; pendingXp=null; shownLines=[]; screen='game'; endFolded=false;
     if(D){ try{ D.dispose(); }catch(e){} D=null; } SC=null; V=null;
     is3d=stageWanted();
     if(is3d){
@@ -143,7 +143,7 @@ export function mountSolo(ctx){
   function flush(){
     if(!SC) return;
     const evs=G.events.slice(cursor); cursor=G.events.length;
-    sel=null; talkMode=null; defMode=null; V.highlight(null); if(is3d&&D) D.setCandidates(null);
+    sel=null; talkMode=null; talkReason=false; defMode=null; V.highlight(null); if(is3d&&D) D.setCandidates(null);
     SC.play(evs, ()=>{ SC.sync(G.villageState()); renderGame(); });
     renderGame();
   }
@@ -178,7 +178,7 @@ export function mountSolo(ctx){
     if(G.phase==='select'&&G.needs) return G.needs.cands;
     if(G.phase==='night'&&G.needs) return G.needs.cands;
     if(G.phase==='talk'&&talkMode) return G.alive().filter(p=>!p.human).map(p=>p.id);
-    if(G.phase==='defense'&&defMode==='blame') return G.needs.targets;
+    if(G.phase==='defense'&&(defMode==='blame'||defMode==='witness')) return G.needs.targets;
     return null;
   }
   function onHouse(id){ const c=pickCands(); if(!c||!c.includes(id)) return; sel=id; V.highlight(id,true); renderPanel(); if(is3d&&D) D.setCandidates(c); }
@@ -195,17 +195,23 @@ export function mountSolo(ctx){
         html=`<div class="rolecard ${h.role}" style="padding:16px"><div class="ic" style="font-size:54px">${r.ic}</div><div class="rn">${r.name}</div><div class="rd">${ROLE_DESC[h.role]}</div>${h.role==='vampir'&&mates.length?`<div style="margin-top:10px;color:var(--blood2);font-weight:800">Ortağın: ${mates.map(m=>m.avatar+' '+esc(m.name)).join(', ')}</div>`:''}</div>
           <button class="btn gold" id="bGo">🔔 Meydana toplan</button>`; break; }
       case 'talk': {
-        if(talkMode){
+        if(G.needs?.type==='answer'){ const w=G.P(G.needs.who); html=`<div class="card panelc" style="border-color:var(--gold)"><label>❓ ${w?esc(w.name):'Biri'} sana soruyor — cevabın?</label><div class="acts">${G.needs.options.map(o=>`<button class="btn sm ${o.key==='angry'?'':'green'}" data-ans="${o.key}">${esc(o.label)}</button>`).join('')}</div></div>`; break; }
+        if(talkMode && talkReason){ const o=G.humanOptions().find(x=>x.type===talkMode); const t=G.P(sel);
+          html=`<div class="card panelc"><label>${talkMode==='accuse'?'Neden şüpheleniyorsun':'Neden güveniyorsun'}: <b style="color:var(--gold)">${t?esc(t.name):''}</b></label><div class="acts">${(o?.reasons||[]).map(r=>`<button class="btn sm ${talkMode==='accuse'?'':'green'}" data-why="${r.key}">${esc(r.label)}</button>`).join('')}</div><div class="row"><button class="btn sec" id="bCancel">Vazgeç</button></div></div>`; }
+        else if(talkMode){
           if(talkMode==='claimSeer'){ const o=G.humanOptions().find(x=>x.type==='claimSeer'); html=`<div class="card panelc"><label>${h.role==='kahin'?'Hangi kehanetini açıklayacaksın?':'Kimi işaret edeceksin? (yalan)'}</label><div class="chips">${o.results.map((x,i)=>`<button class="chip" data-claim="${i}">${G.P(x.target).avatar} ${esc(G.P(x.target).name)} <small class="${x.isVamp?'bad':'ok'}">${x.isVamp?'VAMPİR':'temiz'}</small></button>`).join('')}</div><button class="btn sec" id="bCancel">Vazgeç</button></div>`; }
-          else html=`<div class="card panelc"><label>${talkMode==='accuse'?'Kimi suçlayacaksın? Evine dokun':'Kimi savunacaksın? Evine dokun'}</label>${chips(pickCands())}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn ${talkMode==='accuse'?'':'green'}" id="bDo" ${sel?'':'disabled'}>${talkMode==='accuse'?'Suçla':'Savun'}</button></div></div>`;
+          else { const L={ accuse:['Kimi suçlayacaksın? Evine dokun','Devam →',''], defend:['Kimi savunacaksın? Evine dokun','Devam →','green'], press:['Kimi sıkıştıracaksın?','Sıkıştır','blue'], ally:['Kiminle anlaşacaksın?','İttifak öner','blue'] }[talkMode]||['Seç','Tamam',''];
+            html=`<div class="card panelc"><label>${L[0]}</label>${chips(pickCands())}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn ${L[2]}" id="bDo" ${sel?'':'disabled'}>${L[1]}</button></div></div>`; }
         } else {
-          html=`<div class="card panelc"><label>Sıra sende — ne diyeceksin? <span class="tt">Tur ${G.round}/${G.roundsToday}</span></label><div class="acts">${G.humanOptions().map(o=>`<button class="btn sm ${o.type==='accuse'?'':o.type==='defend'?'green':o.type==='quiet'?'sec':'blue'}" data-act="${o.type}">${o.label}</button>`).join('')}</div></div>`;
+          html=`<div class="card panelc"><label>Sıra sende — ne diyeceksin? <span class="tt">Tur ${G.round}/${G.roundsToday}</span></label><div class="acts">${G.humanOptions().map(o=>`<button class="btn sm ${o.type==='accuse'?'':o.type==='defend'?'green':o.type==='quiet'?'sec':o.type==='calm'||o.type==='oath'?'gold':'blue'}" data-act="${o.type}">${o.label}</button>`).join('')}</div></div>`;
         }
         break; }
       case 'select':
         html=`<div class="card panelc"><label>🏠 Şüphelendiğin kişinin evine dokun</label>${chips(G.needs.cands)}<button class="btn" id="bSel" ${sel?'':'disabled'}>${sel?`${esc(G.P(sel).name)} meydana getirilsin!`:'Bir ev seç'}</button></div>`; break;
       case 'defense': {
-        if(defMode==='blame') html=`<div class="card panelc"><label>Kimi işaret edeceksin?</label>${chips(G.needs.targets)}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn" id="bBlame" ${sel?'':'disabled'}>Onu göster!</button></div></div>`;
+        if(G.needs?.step===2) html=`<div class="card panelc" style="border-color:var(--blood2)"><label style="color:var(--blood2)">❓ ${esc(G.needs.q)}</label><div class="acts">${G.needs.options.map(o=>`<button class="btn sm" data-def="${o.key}">${esc(o.label)}</button>`).join('')}</div></div>`;
+        else if(G.needs?.step===3) html=`<div class="card panelc" style="border-color:var(--blood2)"><label style="color:var(--blood2)">🗣️ Son sözün?</label><div class="acts">${G.needs.options.map(o=>`<button class="btn sm sec" data-def="${o.key}">${esc(o.label)}</button>`).join('')}</div></div>`;
+        else if(defMode==='blame'||defMode==='witness') html=`<div class="card panelc"><label>${defMode==='witness'?'Şahidin kim?':'Kimi işaret edeceksin?'}</label>${chips(G.needs.targets)}<div class="row"><button class="btn sec" id="bCancel">Vazgeç</button><button class="btn ${defMode==='witness'?'green':''}" id="bBlame" ${sel?'':'disabled'}>${defMode==='witness'?'O şahidim!':'Onu göster!'}</button></div></div>`;
         else html=`<div class="card panelc" style="border-color:var(--blood2)"><label style="color:var(--blood2)">⚖️ Meydanda sen varsın! Kendini savun:</label><div class="acts">${G.needs.options.map(o=>`<button class="btn sm ${o.key==='silent'?'sec':o.key==='role'?'blue':o.key==='blame'?'':'green'}" data-def="${o.key}">${o.label}</button>`).join('')}</div></div>`;
         break; }
       case 'final': {
@@ -213,6 +219,7 @@ export function mountSolo(ctx){
         html=`<div class="card panelc"><label>Son karar: <b style="color:var(--gold)">${acc.avatar} ${esc(acc.name)}</b> asılsın mı?</label>
           ${locks.length?`<div class="note" style="text-align:left">Kitleyenler: ${locks.map(([k,v])=>`${G.P(k).avatar}${v==='hang'?'🪢':'🕊️'}`).join(' ')}</div>`:''}
           <div class="row"><button class="btn ${finalChoice==='hang'?'':'sec'}" data-fv="hang">🪢 AS</button><button class="btn ${finalChoice==='release'?'green':'sec'}" data-fv="release">🕊️ BIRAK</button></div>
+          ${G.intervened?'':`<div class="row"><button class="btn sm green" data-iv="support">🤝 Araya gir: savun</button><button class="btn sm" data-iv="refute">👊 Savunmasını çürüt</button></div>`}
           <button class="btn gold" id="bLock" ${finalChoice?'':'disabled'}>🔒 Oyumu kitledim</button></div>`; break; }
       case 'verdict': {
         const lv=G.lastVote||{};
@@ -234,14 +241,17 @@ export function mountSolo(ctx){
     const q=(s)=>el.querySelector(s);
     q('#bGo')&&(q('#bGo').onclick=()=>{ G.ackRole(); flush(); });
     el.querySelectorAll('[data-chip]').forEach(b=>b.onclick=()=>onHouse(b.dataset.chip));
-    el.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{ const t=b.dataset.act; if(t==='quiet'||t==='claimDoctor'){ G.talkAction({type:t}); flush(); } else { talkMode=t; sel=null; renderPanel(); } });
+    el.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{ const t=b.dataset.act; if(t==='quiet'||t==='claimDoctor'||t==='calm'||t==='oath'){ G.talkAction({type:t}); flush(); } else { talkMode=t; talkReason=false; sel=null; renderPanel(); } });
+    el.querySelectorAll('[data-why]').forEach(b=>b.onclick=()=>{ const m=talkMode, t=sel; talkMode=null; talkReason=false; G.talkAction({type:m,target:t,reason:b.dataset.why}); flush(); });
+    el.querySelectorAll('[data-ans]').forEach(b=>b.onclick=()=>{ G.answer(b.dataset.ans); flush(); });
+    el.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{ G.intervene(b.dataset.iv); flush(); });
     el.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>{ const o=G.humanOptions().find(x=>x.type==='claimSeer'); const x=o.results[+b.dataset.claim]; G.talkAction({type:'claimSeer',target:x.target,isVamp:x.isVamp}); flush(); });
-    q('#bCancel')&&(q('#bCancel').onclick=()=>{ talkMode=null; defMode=null; sel=null; V.highlight(null); renderPanel(); });
+    q('#bCancel')&&(q('#bCancel').onclick=()=>{ talkMode=null; talkReason=false; defMode=null; sel=null; V.highlight(null); renderPanel(); });
     q('#bFold')&&(q('#bFold').onclick=()=>{ endFolded=!endFolded; renderPanel(); });
-    q('#bDo')&&(q('#bDo').onclick=()=>{ G.talkAction({type:talkMode,target:sel}); flush(); });
+    q('#bDo')&&(q('#bDo').onclick=()=>{ if(talkMode==='accuse'||talkMode==='defend'){ talkReason=true; renderPanel(); return; } const m=talkMode; talkMode=null; G.talkAction({type:m,target:sel}); flush(); });
     q('#bSel')&&(q('#bSel').onclick=()=>{ G.selectHouse(sel); flush(); });
-    el.querySelectorAll('[data-def]').forEach(b=>b.onclick=()=>{ const k=b.dataset.def; if(k==='blame'){ defMode='blame'; sel=null; renderPanel(); } else { G.defend(k); flush(); } });
-    q('#bBlame')&&(q('#bBlame').onclick=()=>{ G.defend('blame',sel); flush(); });
+    el.querySelectorAll('[data-def]').forEach(b=>b.onclick=()=>{ const k=b.dataset.def; if(!G.needs?.step||G.needs.step===1){ if(k==='blame'||k==='witness'){ defMode=k; sel=null; renderPanel(); return; } } defMode=null; G.defend(k); flush(); });
+    q('#bBlame')&&(q('#bBlame').onclick=()=>{ const m=defMode; defMode=null; G.defend(m,sel); flush(); });
     el.querySelectorAll('[data-fv]').forEach(b=>b.onclick=()=>{ finalChoice=b.dataset.fv; renderPanel(); });
     q('#bLock')&&(q('#bLock').onclick=()=>{ const v=finalChoice; finalChoice=null; G.finalVote(v); flush(); });
     q('#bNight')&&(q('#bNight').onclick=()=>{ G.nextNight(); flush(); });

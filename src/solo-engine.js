@@ -1,3 +1,4 @@
+import * as SC from './scenes.js';
 import * as LN from './lines.js';
 /* =====================================================================
    VAMPİR KÖYLÜ — Tek oyunculu motor (DOM'suz, Node'da test edilebilir)
@@ -10,6 +11,8 @@ export const ROLE_INFO = {
   koylu:  { name:'Köylü',  ic:'🧑‍🌾' },
 };
 
+const ACCUSE_REASONS=[{key:'night',label:'Gece dışarıdaydı'},{key:'quiet',label:'Hiç konuşmuyor'},{key:'pushed',label:'Dün masumu astırdı'},{key:'lie',label:'Lafı tutmuyor'},{key:'gut',label:'İçimden bir ses'}];
+const DEFEND_REASONS=[{key:'alibi',label:'Gece benimleydi'},{key:'seer',label:'Kâhin temiz dedi'},{key:'accuser',label:'Suçlayan şüpheli'},{key:'vouch',label:'Ona kefilim'}];
 const NEG_POOLS = new Set([LN.ACCUSE, LN.ACCUSE_HERD, LN.SEER_VAMP, LN.COUNTER_SEER, LN.RESPONSE_DOUBT]);
 const BOT_NAMES = ['Mehmet','Mustafa','Hasan','Kerem','Burak','Emre','Yusuf','Can','Oğuz','Tolga','Baran','Umut','Ahmet','İsmail','Hüseyin','Osman','Recep','Cemal','Halil','Rıfat','Şükrü','Veli','Yakup','Kadir','Nuri','Ramazan','Bekir','Fikri','Hamdi'];
 const AVATARS = ['👨','👴','🧔','👨‍🦱','👨‍🦳','🧑','👨‍🌾','👲','🧓','👱‍♂️','🧔‍♂️','👨‍🦰','🤵','👮‍♂️','🧑‍🌾','👷‍♂️','🕵️‍♂️','🧑‍🦲','👨‍🦲','🧑‍🦱','🧑‍🦳','💂‍♂️','🧙‍♂️','🤠'];
@@ -154,10 +157,11 @@ export class SoloGame {
   narr(text){ const e={ t:'narr', day:this.day, who:null, name:'Anlatıcı', avatar:'🌙', text, voice:LN.spokenFor(text), kind:'narr' }; this.feed.push(e); this.events.push(e); }
   sfx(name){ this.ev({t:'sfx', name}); }
   pk(arr){ return LN.pick(arr, this.rng); }
+  _io(){ return { say:(p,t,k)=>this.say(p,t,k), narr:(t)=>this.narr(t), sfx:(n)=>this.sfx(n), ev:(e)=>this.ev(e), rnd:this.rng }; }
   line(arr, m){ return LN.fillT(this.pk(arr), m||{}, NEG_POOLS.has(arr)); }
   /** Köy görseli için kalıcı durum */
   villageState(){ const s={}; const hanged=this.players.filter(p=>p.fate==='hanged').sort((a,b)=>a.hangOrder-b.hangOrder); const lastHanged=hanged.slice(-3);
-    for(const p of this.players){ if(p.fate==='impaled') s[p.id]={impaled:true, stakeK:p.stakeK}; else if(p.fate==='hanged' && lastHanged.includes(p)) s[p.id]={hanged:true, hangK:lastHanged.indexOf(p)}; else if(!p.alive) s[p.id]={dead:true}; }
+    for(const p of this.players){ if(p.fate==='impaled') s[p.id]={impaled:true, stakeK:p.stakeK, ash:!!p.ash}; else if(p.fate==='hanged' && lastHanged.includes(p)) s[p.id]={hanged:true, hangK:lastHanged.indexOf(p)}; else if(!p.alive) s[p.id]={dead:true}; }
     return s; }
   speaker(exclude=[]){ const c=this.aliveBots().filter(p=>!exclude.includes(p)); return c.length?this.rng.pick(c):null; }
   muhtar(){ return this.aliveBots().find(p=>p.title==='Muhtar') || this.speaker(); }
@@ -269,8 +273,12 @@ export class SoloGame {
   humanOptions(){
     const h=this.human, al=this.alive().filter(p=>p!==h);
     const opts=[];
-    opts.push({ type:'accuse', label:'Suçla', targets:al.map(p=>p.id) });
-    opts.push({ type:'defend', label:'Savun', targets:al.map(p=>p.id) });
+    opts.push({ type:'accuse', label:'Suçla', targets:al.map(p=>p.id), reasons:ACCUSE_REASONS });
+    opts.push({ type:'defend', label:'Savun', targets:al.map(p=>p.id), reasons:DEFEND_REASONS });
+    opts.push({ type:'press', label:'Sıkıştır', targets:al.map(p=>p.id) });
+    if(!this.allyOf) opts.push({ type:'ally', label:'İttifak öner', targets:al.map(p=>p.id) });
+    opts.push({ type:'calm', label:'Ortamı yatıştır' });
+    opts.push({ type:'oath', label:'Yemin et' });
     if(h.role==='kahin'){ const known=Object.entries(h.knows).filter(([id])=>this.P(id).alive).map(([id,isVamp])=>({target:id,isVamp})); if(known.length) opts.push({ type:'claimSeer', label:'Kâhin olduğunu açıkla', results:known }); }
     else if(h.claimed!=='kahin') opts.push({ type:'claimSeer', label:'Kâhinim de (yalan)', results: al.map(p=>({target:p.id,isVamp:true})).concat(al.map(p=>({target:p.id,isVamp:false}))) });
     if(h.claimed!=='doktor') opts.push({ type:'claimDoctor', label: h.role==='doktor'?'Doktor olduğunu açıkla':'Doktorum de (yalan)' });
@@ -278,11 +286,27 @@ export class SoloGame {
     return opts;
   }
   talkAction(a){
-    if(this.phase!=='talk') return;
+    if(this.phase!=='talk'||this.needs?.type==='answer') return;
     const h=this.human;
     switch(a.type){
-      case 'accuse': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, LN.regSpoken(`${t.name} vampir olabilir la. Ona oy vereceğim.`,'Bu herif vampir olabilir la. Ona oy vereceğim.')); this._accuse(h,t); break; }
-      case 'defend': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, LN.regSpoken(`${t.name} masum, ona kefilim.`,'Bu adam masum, ona kefilim.')); this._defend(h,t); break; }
+      case 'accuse': { const t=this.P(a.target); if(!t||!t.alive||t===h) return;
+        if(!a.reason){ this.say(h, LN.regSpoken(`${t.name} vampir olabilir la. Ona oy vereceğim.`,'Bu herif vampir olabilir la. Ona oy vereceğim.')); this._accuse(h,t); this._stance(t,1); break; }
+        const rs=LN.ACCUSE_WHY[a.reason]?a.reason:'gut'; const {pow,truth}=this._reasonPower('accuse',rs,h,t);
+        this.say(h, LN.fillT(this.pk(LN.ACCUSE_WHY[rs]),{t:t.name})); this._accuse(h,t,pow); this._reactions(h,t,1,truth); this._stance(t,1); if(this._askBack(h,t)) return; break; }
+      case 'defend': { const t=this.P(a.target); if(!t||!t.alive||t===h) return;
+        if(!a.reason){ this.say(h, LN.regSpoken(`${t.name} masum, ona kefilim.`,'Bu adam masum, ona kefilim.')); this._defend(h,t); this._stance(t,-1); break; }
+        const rs=LN.DEFEND_WHY[a.reason]?a.reason:'vouch'; const {pow,truth}=this._reasonPower('defend',rs,h,t);
+        this.say(h, LN.fillT(this.pk(LN.DEFEND_WHY[rs]),{t:t.name})); this._defend(h,t,pow);
+        if(rs==='accuser'){ for(const id of (this.accusedBy[t.id]||[])){ const x=this.P(id); if(x&&x.alive&&x!==h) for(const b of this._others(h)) if(b!==x) b.sus[x.id]+=0.4*h.cred*b.pers.logic; } }
+        if(rs==='vouch') (this.vouches||=[]).push(t.id);
+        this._reactions(h,t,-1,truth); this._stance(t,-1); break; }
+      case 'press': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, LN.fillT(this.pk(LN.PRESS.ask),{y:t.name})); this._press(h,t); this._stance(t,1); break; }
+      case 'ally': { const t=this.P(a.target); if(!t||!t.alive||t===h) return; this.say(h, LN.fillT(this.pk(LN.ALLY.ask),{y:t.name}));
+        const ok=(t.sus[h.id]||0)<0.6 && (t.role==='vampir' ? (h.role==='vampir' || this.rng.chance(0.7)) : this.rng.chance(0.75-(t.sus[h.id]||0)*0.4));
+        if(ok){ this.say(t,this.pk(LN.ALLY.yes)); this.allyOf=t.id; t.ally=h.id; t.sus[h.id]-=1.2; } else { this.say(t,this.pk(LN.ALLY.no)); for(const b of this._others(h)) if(b!==t) b.sus[h.id]+=0.15*b.pers.logic; }
+        break; }
+      case 'calm': { this.say(h, this.pk(LN.CALM)); this.calmUntil=this.round+1; h.cred=Math.min(1.6,h.cred+0.05); for(const b of this._others(h)) b.sus[h.id]-=0.12; break; }
+      case 'oath': { this.say(h, this.pk(LN.OATH)); this.oaths=(this.oaths||0)+1; const w=0.35/this.oaths; for(const b of this._others(h)) b.sus[h.id]-=w*(1-b.pers.logic*0.5); break; }
       case 'claimSeer': { const t=this.P(a.target); if(!t||!t.alive) return; const isVamp=!!a.isVamp;
         if(h.role==='kahin' && h.knows[a.target]!==isVamp) return;
         this.say(h, isVamp?LN.regSpoken(`Ben kâhinim la! Dün gece ${LN.suf(t.name,'e')} baktım: VAMPİR!`,'Ben kâhinim la! Dün gece bu herife baktım: VAMPİR!'):LN.regSpoken(`Ben kâhinim. ${t.name} temiz, ona oy vermeyin.`,'Ben kâhinim. Bu adam temiz, ona oy vermeyin.'));
@@ -291,31 +315,72 @@ export class SoloGame {
       default: { this.stats.quietRounds++; this.say(h,'…','quiet'); }
     }
     this.spokeToday.add(h.id);
+    this._endHumanTurn();
+  }
+  _endHumanTurn(){
     this.round++;
     if(this.round>this.roundsToday){ this._toSelect(); return; }
     this._botsSpeak();
   }
+  /** gerekçenin gücü: doğrulanabilir mi, doğru mu */
+  _reasonPower(kind,rs,h,t){
+    let truth=null, pow=1;
+    if(kind==='accuse'){
+      if(rs==='quiet'){ truth=!this.spokeToday.has(t.id); pow=truth?1.3:0.35; }
+      else if(rs==='pushed'){ const lv=this.lastVote; truth=!!(lv&&lv.hanged&&lv.role!=='vampir'&&((this.prevAccusers||[]).includes(t.id)||lv.votes?.[t.id])); pow=truth?1.5:0.4; }
+      else if(rs==='lie'){ const seers=this.alive().filter(p=>p.claimed==='kahin'); truth=!!(t.claimed && (t.claimed==='kahin'?seers.length>1:this.alive().filter(p=>p.claimed===t.claimed).length>1)); pow=truth?1.5:0.45; }
+      else if(rs==='night'){ pow=1.0*h.cred; }
+      else pow=0.6;
+    } else {
+      if(rs==='seer'){ truth=this.alive().some(p=>p.claimed==='kahin'&&p.claims.some(c=>c.target===t.id&&!c.isVamp)); pow=truth?1.5:0.4; }
+      else if(rs==='alibi') pow=1.0*h.cred; else if(rs==='accuser') pow=0.7; else pow=0.85;
+    }
+    return { pow, truth };
+  }
+  /** kalabalığın tepkisi: katılan / itiraz eden */
+  _reactions(h,t,sign,truth){
+    const r=this.rng; const bots=r.shuffle(this.aliveBots().filter(b=>b!==t)).slice(0,r.chance(.5)?2:1);
+    for(const b of bots){ const s=(b.sus[t.id]||0)*sign; const agree=truth===false?false:(truth===true?s>-0.6:s>0.2);
+      this.say(b, this.pk(agree?LN.AGREE:LN.OBJECT));
+      for(const o of this._others(b)) if(o!==t&&o!==h) o.sus[t.id]+=(agree?0.12:-0.12)*sign*b.cred*o.pers.herd; }
+  }
+  /** suçlananın gözündeki şüphe: biri sana soru sorar (cevap beklenir) */
+  _askBack(h,t){
+    const r=this.rng; if(!h.alive||!r.chance(0.35)) return false;
+    const asker=(t.human?null:t)||this.speaker([h]); if(!asker) return false;
+    this.say(asker, this.pk(LN.ASK_YOU)); this.needs={ type:'answer', who:asker.id, options:LN.YOU_ANSWER.map(o=>({ key:o.key, label:o.label })) }; this.spokeToday.add(h.id); return true;
+  }
+  answer(key){ if(this.phase!=='talk'||this.needs?.type!=='answer') return; const h=this.human; const o=LN.YOU_ANSWER.find(x=>x.key===key)||LN.YOU_ANSWER[0];
+    this.say(h,o.text); for(const b of this._others(h)) b.sus[h.id]+=(o.v>0?-0.3:o.v<0?0.35:0)*(0.6+b.pers.logic*0.5); this.needs={ type:'talk' }; this._endHumanTurn(); }
+  /** sıkıştırma: vampir çelişkiye düşebilir */
+  _press(h,t){ const r=this.rng; let kind;
+    if(t.human) kind='good'; else if(t.role==='vampir') kind=r.chance(0.35+this.iq*0.45)?'good':(r.chance(.6)?'bad':'angry'); else kind=r.chance(.8)?'good':'angry';
+    this.say(t, this.pk(LN.PRESS[kind]));
+    for(const b of this._others(t)) if(b!==h){ const d=kind==='bad'?0.9:kind==='angry'?0.25:-0.3; b.sus[t.id]+=d*(0.5+b.pers.logic*0.6); }
+    if(kind==='bad'){ const w=this.speaker([t,h]); if(w) this.say(w, LN.fillT(this.pk(LN.ACCUSE_WHY.lie),{t:t.name})); } }
+  /** başlar üstünde ikna göstergesi: 👍 katılıyor 🤔 kararsız 👎 karşı */
+  _stance(t,sign){ const marks={}; for(const b of this.aliveBots()){ if(b===t) continue; const s=(b.sus[t.id]||0)*sign; marks[b.id]=s>0.7?'👍':s<-0.25?'👎':'🤔'; } this.ev({ t:'stance', marks }); }
 
   /* ---------- şüphe modeli ---------- */
   _others(x){ return this.alive().filter(p=>p!==x && !p.human); }
   _knowsTruth(b,t){ return b.knows[t.id]!==undefined || b.role==='vampir'; }
-  _accuse(s,t){
+  _accuse(s,t,pow=1){
     (this.accusedBy[t.id] ||= []).push(s.id);
     s.accuseCount=(s.accuseCount||0)+1;
     if(t.role==='vampir') s.accusedVampCount=(s.accusedVampCount||0)+1;
     for(const b of this._others(s)){
       if(b===t){ b.sus[s.id]+=1.2; continue; }
       if(this._knowsTruth(b,t)){ if(b.role!=='vampir' && b.knows[t.id]===false) b.sus[s.id]+=0.8*b.pers.logic; continue; }
-      b.sus[t.id]+= 1.0*s.cred*(0.5+b.pers.herd*0.8);
-      b.sus[s.id]+= 0.12*b.pers.logic;
+      b.sus[t.id]+= 1.0*pow*s.cred*(0.5+b.pers.herd*0.8)*(this.calmUntil===this.round?0.6:1);
+      b.sus[s.id]+= 0.12*b.pers.logic*(pow<0.6?2.2:1);
     }
   }
-  _defend(s,t){
+  _defend(s,t,pow=1){
     (this.defendedBy[t.id] ||= []).push(s.id);
     for(const b of this._others(s)){
       if(b===t){ b.sus[s.id]-=0.6; continue; }
       if(this._knowsTruth(b,t)){ if(b.knows[t.id]===true && b.role!=='vampir') b.sus[s.id]+=1.5*b.pers.logic; continue; }
-      b.sus[t.id]-= 0.6*s.cred;
+      b.sus[t.id]-= 0.6*pow*s.cred;
     }
   }
   _claimSeer(s,t,isVamp){ const prior=this.alive().find(p=>p!==s && p.claimed==='kahin'); s.claimed='kahin'; s.claims.push({target:t.id,isVamp}); this._applyClaim(s,t,isVamp,1,false,prior); }
@@ -330,6 +395,9 @@ export class SoloGame {
     }
   }
   _claimDoctor(s){ s.claimed='doktor'; for(const b of this._others(s)){ if(b.role==='doktor'){ b.sus[s.id]+=3; continue; } if(b.role==='vampir') continue; b.sus[s.id]-=(this.lastNight?.saved?1.5:0.6)*s.cred; } }
+  _botAccuseLine(b,t){ const r=this.rng; let rs=null;
+    if(!this.spokeToday.has(t.id) && r.chance(.45)) rs='quiet'; else if((this.prevAccusers||[]).includes(t.id) && r.chance(.6)) rs='pushed'; else if(r.chance(.3)) rs=r.chance(.5)?'night':'gut';
+    return rs ? LN.fillT(this.pk(LN.ACCUSE_WHY[rs]),{t:t.name}) : this.line(LN.ACCUSE,{t:t.name}); }
   _botsSpeak(){
     const r=this.rng, iq=this.iq;
     const bots=r.shuffle(this.aliveBots());
@@ -338,13 +406,14 @@ export class SoloGame {
       if(spoken>=4) break;
       if(!r.chance(b.pers.talk*0.75+0.2)) continue;
       spoken++; this.spokeToday.add(b.id);
+      if(b.arch==='kufurbaz' && r.chance(.45)) this.say(b,this.pk(LN.KUFURBAZ));
       const others=this.alive().filter(p=>p!==b);
       if(b.role==='vampir'){
         const seerClaim=others.find(p=>p.claimed==='kahin' && p.claims.some(c=>this.P(c.target).role==='vampir' && this.P(c.target).alive));
         const vampClaimed=this.players.some(p=>p.role==='vampir'&&p.claimed==='kahin');
         if(seerClaim && !vampClaimed && r.chance(iq*0.8)){ this.say(b, this.line(LN.COUNTER_SEER,{t:seerClaim.name})); this._claimSeer(b,seerClaim,true); continue; }
         const cands=others.filter(p=>p.role!=='vampir'); const t=this._crowdSuspect(cands,b)||r.pick(cands);
-        if(r.chance(0.35+iq*0.4)){ this.say(b, this.line(LN.ACCUSE,{t:t.name})); this._accuse(b,t); } else this.say(b, this.line(LN.QUIET),'quiet');
+        if(r.chance(0.35+iq*0.4)){ this.say(b, this._botAccuseLine(b,t)); this._accuse(b,t); } else this.say(b, this.line(LN.QUIET),'quiet');
         continue;
       }
       if(b.role==='kahin'){
@@ -358,7 +427,7 @@ export class SoloGame {
       const top=ranked[0]; const topS=b.sus[top.id]||0;
       const herdTarget = b.pers.herd>0.6 ? this._crowdSuspect(others,b) : null;
       if(herdTarget && r.chance(b.pers.herd*0.6) && (b.sus[herdTarget.id]||0)>-1){ this.say(b, this.line(LN.ACCUSE_HERD,{t:herdTarget.name})); this._accuse(b,herdTarget); continue; }
-      if(topS>0.6 && r.chance(b.pers.aggr*0.8+0.1)){ this.say(b, this.line(LN.ACCUSE,{t:top.name})); this._accuse(b,top); continue; }
+      if(topS>0.6 && r.chance(b.pers.aggr*0.8+0.1)){ this.say(b, this._botAccuseLine(b,top)); this._accuse(b,top); continue; }
       const accusedInnocent = others.find(p=>(this.accusedBy[p.id]||[]).length && (b.sus[p.id]||0)<-0.5);
       if(accusedInnocent && r.chance(.5)){ this.say(b, this.line(LN.DEFEND,{t:accusedInnocent.name})); this._defend(b,accusedInnocent); continue; }
       this.say(b, this.line(LN.QUIET),'quiet');
@@ -387,7 +456,7 @@ export class SoloGame {
     const tally=()=>{ const t={}; for(const v of Object.values(votes)) t[v]=(t[v]||0)+1; return t; };
     for(const b of r.shuffle(this.aliveBots())){
       const others=this.alive().filter(p=>p!==b);
-      const cands = b.role==='vampir' ? others.filter(p=>p.role!=='vampir') : others;
+      let cands = b.role==='vampir' ? others.filter(p=>p.role!=='vampir') : others; if(b.ally===h.id && cands.length>1) cands=cands.filter(p=>p!==h);
       const cur=tally(); let best=null,bs=-1e9;
       for(const c of cands){ let s=(b.sus[c.id]||0) + (cur[c.id]||0)*b.pers.herd*0.7 + (r()-.5)*(1.4-iq); if(b.role==='vampir') s+=(cur[c.id]||0)*0.8; if(s>bs){bs=s;best=c;} }
       votes[b.id]=best.id;
@@ -401,11 +470,7 @@ export class SoloGame {
     const voters=r.shuffle(Object.keys(votes).filter(id=>votes[id]===acc.id && id!==h.id).map(id=>this.P(id))).slice(0,2);
     for(const v of voters) this.say(v, r.chance(.5)?LN.regSpoken(`Ben ${LN.suf(acc.name,'i')} seçtim!`,'Ben bu herifi seçtim!'):this.line(LN.ACCUSE_HERD,{t:acc.name}));
     this.narr(LN.regSpoken(`En çok seçilen: ${acc.name} (${max} oy). Evinden alınıp meydana getiriliyor!`,'Köy kararını verdi! Evinden alınıp meydana getiriliyor!'));
-    const crowd=r.shuffle(this.alive().filter(p=>p!==acc)).slice(0,4).map(p=>p.id);
-    this.ev({t:'drag', target:acc.id, crowd});
-    if(crowd.length){ const c=this.P(crowd.find(id=>!this.P(id).human)||crowd[0]); this.say(c, this.pk(LN.DRAG.crowd)); }
-    this.say(acc, this.pk(LN.DRAG.accused));
-    this.ev({t:'escort', who:acc.id, crowd});
+    SC.dragScene(this._io(), { acc, others:this.alive().filter(p=>p!==acc) });
     this.ev({t:'badges', counts:{}});
     this.accused=acc.id;
     this._defense();
@@ -416,16 +481,27 @@ export class SoloGame {
     const acc=this.P(this.accused);
     this.phase='defense';
     this.narr(LN.regSpoken(`${acc.name}, söz senin. Kendini savun!`,'Söz sende. Kendini savun!'));
-    if(acc.human){ this.needs={ type:'defense', options:LN.DEFENSE_HUMAN.map(o=>({key:o.key,label:o.label})), targets:this.alive().filter(p=>p!==acc).map(p=>p.id) }; return; }
+    if(acc.human){ this.needs={ type:'defense', step:1, options:LN.DEFENSE_OPEN.map(o=>({key:o.key,label:o.label})), targets:this.alive().filter(p=>p!==acc).map(p=>p.id) }; return; }
     this._botDefense(acc);
+    // kalabalıktan zor soru, sanık bot cevaplar
+    { const r=this.rng; const Q=r.pick(LN.DEFENSE_Q); const asker=this.speaker([acc]); if(asker && r.chance(.75)){ this.say(asker,Q.q); const i=acc.role==='vampir'&&r.chance(0.55-this.iq*0.35)?2:(r.chance(.6)?0:1); const x=Q.a[i]; this.say(acc,x.text);
+      for(const b of this._others(acc)) b.sus[acc.id]+=(x.v>0?-0.3:x.v<0?0.45:0)*(0.6+b.pers.logic*0.5); } }
     this._responses(acc);
     this._toFinal();
   }
   defend(key, targetId){
     if(this.phase!=='defense'||!this.needs) return;
+    const n=this.needs; if(n.step===2) return this.defenseAnswer(key); if(n.step===3) return this.lastWord(key);
     const h=this.human; const others=this.alive().filter(p=>p!==h); const r=this.rng;
+    if(key==='innocent') key='witness';
+    const txt=(k)=>LN.DEFENSE_OPEN.find(x=>x.key===k).text;
     switch(key){
-      case 'innocent': { const o=r.pick(others.filter(p=>!p.human)); this.say(h, LN.regSpoken(`Ben köylüyüm la! Dün gece evdeydim, ${o.name} şahidim.`,'Ben köylüyüm la! Dün gece evdeydim, şu adam şahidim.')); for(const b of this._others(h)) b.sus[h.id]-=0.5*h.cred*(1-b.pers.logic*0.4); if(o.role!=='vampir' && (o.sus[h.id]||0)<0.5){ this.say(o,'Doğru diyo, yanımdaydı.'); for(const b of this._others(h)) b.sus[h.id]-=0.4; } break; }
+      case 'witness': { let o=this.P(targetId); if(!o||!o.alive||o===h) o=r.pick(others.filter(p=>!p.human)); if(!o) break;
+        this.say(h, LN.fillT(txt('witness'),{o:o.name})); for(const b of this._others(h)) b.sus[h.id]-=0.3*h.cred*(1-b.pers.logic*0.4);
+        const yes=o.role==='vampir' ? (h.role==='vampir'||r.chance(0.5)) : ((o.sus[h.id]||0)<0.5 && r.chance(0.8));
+        if(yes){ this.say(o,this.pk(LN.WITNESS_YES)); for(const b of this._others(h)) if(b!==o) b.sus[h.id]-=0.5*o.cred; }
+        else { this.say(o,this.pk(LN.WITNESS_NO)); for(const b of this._others(h)) if(b!==o) b.sus[h.id]+=0.6*o.cred; }
+        break; }
       case 'blame': { const t=this.P(targetId); if(!t||!t.alive||t===h) return; this.say(h, LN.regSpoken(`Beni bırakın, asıl vampir ${t.name}! Gözlerine bakın gözlerine!`,'Beni bırakın, asıl vampir bu herif! Gözlerine bakın gözlerine!')); this._accuse(h,t); for(const b of this._others(h)) b.sus[h.id]-=0.2; break; }
       case 'role': {
         if(h.role==='kahin'){ const known=Object.entries(h.knows).filter(([id])=>this.P(id).alive); const vamp=known.find(([,v])=>v); const pickK=vamp||known[0];
@@ -434,12 +510,29 @@ export class SoloGame {
         else if(h.role==='doktor'){ this.say(h,'Ben doktorum! Beni asarsanız geceleri kimse korunmaz!'); this._claimDoctor(h); }
         else { this.say(h,'Ben düz köylüyüm la, bi suçum yok! Yapmayın!'); for(const b of this._others(h)) b.sus[h.id]-=0.3; }
         break; }
-      default: { this.say(h,'…','quiet'); for(const b of this._others(h)) b.sus[h.id]+=0.2; }
+      case 'oath': { this.say(h, txt('oath')); for(const b of this._others(h)) b.sus[h.id]-=0.25*(1-b.pers.logic*0.5); break; }
+      case 'beg': { this.say(h, txt('beg')); for(const b of this._others(h)) b.sus[h.id]+=(b.pers.logic>0.6?0.15:-0.35); break; }
+      case 'threat': { this.say(h, txt('threat')); for(const b of this._others(h)) b.sus[h.id]+=(r.chance(0.5)?-0.3:0.4); break; }
+      default: { this.say(h,'…','quiet'); for(const b of this._others(h)) b.sus[h.id]+=0.2; this.needs=null; this._responses(h); this._toFinal(); return; }
     }
-    this.needs=null;
-    this._responses(h);
-    this._toFinal();
+    // 2) kalabalıktan zor soru
+    const qi=Math.floor(r()*LN.DEFENSE_Q.length); const Q=LN.DEFENSE_Q[qi]; const asker=this.speaker([h]); if(asker) this.say(asker,Q.q); else this.narr(Q.q);
+    this.needs={ type:'defense', step:2, q:Q.q, qi, options:Q.a.map((x,i)=>({ key:String(i), label:x.label })) };
   }
+  defenseAnswer(key){ const n=this.needs; if(this.phase!=='defense'||n?.step!==2) return; const h=this.human; const Q=LN.DEFENSE_Q[n.qi]; const a=Q.a[+key]||Q.a[0];
+    this.say(h,a.text); for(const b of this._others(h)) b.sus[h.id]+=(a.v>0?-0.4:a.v<0?0.5:0)*(0.6+b.pers.logic*0.5);
+    this.needs={ type:'defense', step:3, options:LN.LAST_WORD.map(o=>({ key:o.key, label:o.label })) }; }
+  lastWord(key){ if(this.phase!=='defense'||this.needs?.step!==3) return; const h=this.human; const o=LN.LAST_WORD.find(x=>x.key===key)||LN.LAST_WORD[0]; this.say(h,o.text);
+    if(key==='warn'){ for(const b of this._others(h)) b.sus[h.id]-=0.15; }
+    else if(key==='forgive'){ for(const b of this._others(h)) b.sus[h.id]-=0.2*(1-b.pers.logic*0.5); }
+    else { for(const b of this._others(h)) b.sus[h.id]+=(b.pers.aggr>0.6?0.15:-0.1); }
+    const al=this.alive().find(p=>p.ally===h.id); if(al){ this.say(al, LN.fillT(this.pk(LN.DEFEND_WHY.vouch),{t:h.name})); for(const b of this._others(h)) if(b!==al) b.sus[h.id]-=0.4*al.cred; }
+    this.needs=null; this._responses(h); this._toFinal(); }
+  /** başkası yargılanırken araya gir: destekle / çürüt (bir kez) */
+  intervene(kind){ if(this.phase!=='final'||this.needs?.type!=='final'||this.intervened) return; const h=this.human, acc=this.P(this.accused); if(!h.alive||h===acc) return;
+    this.intervened=true; const pool=LN.INTERVENE[kind==='support'?'support':'refute']; this.say(h, LN.fillT(this.pk(pool),{t:acc.name}));
+    const sign=kind==='support'?-1:1; for(const b of this._others(h)) if(b!==acc && !this.finalVotes[b.id]) b.sus[acc.id]+=sign*0.6*h.cred*(0.5+b.pers.herd*0.6);
+    this._stance(acc,1); }
   _botDefense(acc){
     const r=this.rng, iq=this.iq; const others=this.alive().filter(p=>p!==acc);
     if(acc.role==='kahin'){ const found=Object.entries(acc.knows).find(([id,v])=>v===true && this.P(id).alive); if(found){ const t=this.P(found[0]); this.say(acc, LN.regSpoken(`Ben kâhinim la! ${t.name} VAMPİR! Beni değil onu asın!`,'Ben kâhinim la! Bu herif VAMPİR! Beni değil onu asın!')); this._claimSeer(acc,t,true); return; } }
@@ -468,7 +561,7 @@ export class SoloGame {
 
   /* ================= SON MÜNAZARA + KİLİTLİ OY ================= */
   _toFinal(){
-    this.phase='final'; this.finalVotes={};
+    this.phase='final'; this.finalVotes={}; this.intervened=false;
     const acc=this.P(this.accused);
     this.narr(LN.regSpoken(`Son karar: ${acc.name} asılsın mı? Herkes oyunu versin ve kitlesin!`,'Son karar! Asılsın mı, bırakılsın mı? Herkes oyunu versin ve kitlesin!'));
     // kararlı botlar önce kitler
@@ -520,29 +613,13 @@ export class SoloGame {
   _execute(acc, hang, rel){
     const r=this.rng;
     const hangVotes={}; for(const [k,v] of Object.entries(this.finalVotes)) if(v==='hang') hangVotes[k]=acc.id;
-    this.sfx('drum');
-    this.say(acc, this.pk(LN.PLEAD));
-    const ex=this.speaker([acc].concat(this.aliveVamps())) || this.speaker([acc]);
-    this.ev({t:'stool', who:acc.id});
-    if(ex) this.say(ex, this.pk(LN.EXECUTIONER));
-    this.sfx('thud'); this.sfx('creak');
+    const hk=this.human.alive && this.human!==acc && this.human.role!=='vampir' ? this.human : null;
+    const res=SC.executeScene(this._io(), { acc, alive:this.alive(), preferKicker:hk, onStakeK:()=>{ const k=this.stakeCount++; acc.stakeK=k%3; return acc.stakeK; } });
     if(acc.role==='vampir'){
-      this.ev({t:'hang', who:acc.id, vamp:true}); this.sfx('evil');
-      const s1=this.speaker([acc]); this.say(s1||acc, this.pk(LN.HANG_VAMPIRE_SURPRISE));
-      this.say(acc, this.pk(LN.VAMPIRE_HANGED_LINES));
-      const kickers=r.shuffle(this.aliveBots().filter(p=>p!==acc && p.role!=='vampir')).slice(0,3);
-      if(this.human.alive && this.human!==acc && this.human.role!=='vampir') kickers.unshift(this.human);
-      for(const k of kickers.slice(0,3)){ this.ev({t:'kick', who:acc.id, by:k.id}); this.sfx('kick'); this.say(k, k.human?'Bu da benden, al!':this.pk(LN.KICK)); }
-      const k=this.stakeCount++; acc.alive=false; acc.fate='impaled'; acc.stakeK=k%3;
-      this.ev({t:'impale', who:acc.id, k:acc.stakeK});
-      const holders=r.shuffle(this.aliveBots().filter(p=>p!==acc && p.role!=='vampir'));
-      for(let i=0;i<3;i++){ const hld=holders[i%Math.max(1,holders.length)]; if(hld) this.say(hld, this.pk(LN.IMPALE)); this.sfx('scream'); this.say(acc, this.pk(LN.SCREAMS),'scream'); }
-      this.sfx('impale'); this.sfx('cheer');
-      const fin=this.speaker(); if(fin) this.say(fin, this.pk(LN.AFTER_IMPALE));
+      acc.alive=false; acc.fate='impaled'; acc.ash=!!res.ash;
       if(this.stats.vampHangedDay===null) this.stats.vampHangedDay=this.day;
       if(acc.human) this.stats.humanDiedDay=this.day;
     } else {
-      this.ev({t:'hang', who:acc.id, vamp:false});
       acc.alive=false; acc.fate='hanged'; acc.hangOrder=this.hangCount++;
       const s1=this.speaker([acc]); if(s1) this.say(s1, this.pk(LN.HANG_VILLAGER));
       this.narr(LN.regSpoken(`${acc.name} ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}.`,`Meğer ${ROLE_INFO[acc.role].name.toLowerCase()}${roleSuffix(acc.role)}!`));
@@ -566,6 +643,7 @@ export class SoloGame {
       for(const p of this.alive()) if(p.claimed==='kahin' && p.claims.some(c=>c.target===hp.id&&c.isVamp)){ p.cred=1.6; for(const b of bots) if(b!==p) b.sus[p.id]-=3; }
       for(const p of this.alive()) if(p.claimed==='kahin' && p.claims.some(c=>c.target!==hp.id&&c.isVamp) && hp.claimed==='kahin'){ /* vampir sahte kâhindi */ }
     } else {
+      this.prevAccusers=accusers.map(a=>a.id);
       for(const a of accusers){ a.cred=Math.max(.3,a.cred-0.3); for(const b of bots) if(b!==a) b.sus[a.id]+=1.0*b.pers.logic; }
       for(const v of voters) for(const b of bots) if(b!==v) b.sus[v.id]+=0.3*b.pers.logic;
       for(const d of defenders) d.cred=Math.min(1.6,d.cred+0.15);
@@ -581,19 +659,12 @@ export class SoloGame {
     if(v===0) this.winner='koylu'; else if(v>=o) this.winner='vampir';
     if(!this.winner) return false;
     this.phase='end'; this.needs=null;
-    this.ev({t:'night', on:this.winner==='vampir', end:true}); this.ev({t:'gather', end:true});
     if(this.winner==='vampir'){
       const vamps=this.aliveVamps(); const vills=al.filter(p=>p.role!=='vampir');
-      vamps.forEach(p=>this.ev({t:'fangs', who:p.id}));
-      vills.forEach(p=>{ this.ev({t:'hang', who:p.id, vamp:false, final:true}); p.fate='hanged'; p.hangOrder=this.hangCount++; });
-      this.sfx('evil');
-      const sp=vamps[0];
-      this.say(sp, this.pk(vamps.length>1 || this.players.filter(p=>p.role==='vampir').length>1 ? LN.END_VAMP_MULTI : LN.END_VAMP_SOLO));
-      this.narr('Vampirler köyü ele geçirdi!');
+      SC.vampWinScene(this._io(), { vamps, vills, multi: this.players.filter(p=>p.role==='vampir').length>1 });
+      vills.forEach(p=>{ p.fate='bitten'; });
     } else {
-      this.sfx('festive');
-      const sp=this.speaker(); if(sp) this.say(sp, this.pk(LN.END_VILLAGE)); else this.narr(this.pk(LN.END_VILLAGE));
-      this.narr('Son vampirin de kalbine kazık çakıldı. Köy kurtuldu!');
+      SC.villageWinScene(this._io(), { alive:al });
     }
     this.result=this._score();
     return true;

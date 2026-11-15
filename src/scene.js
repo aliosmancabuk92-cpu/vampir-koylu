@@ -36,6 +36,7 @@ export function createScene({ village, voice, onLine, speak:speakImpl=null }){
   }
   function sfx(name){ if(skipping||!voice.on) return; try{ SFX[name]&&SFX[name](); }catch(e){} }
 
+  let chaseLast=null;
   async function apply(e){
     switch(e.t){
       case 'say': case 'narr': {
@@ -61,6 +62,11 @@ export function createScene({ village, voice, onLine, speak:speakImpl=null }){
       case 'impale': { V.rope(e.who,false); V.stool(true); V.toStake(e.who,e.k||0); await wait(1200); V.impaled(e.who); state[e.who]={impaled:true, stakeK:e.k||0}; break; }
       case 'dead': { const [x,y]=V.homePos(e.who); V.moveTo(e.who,x,y); V.dead(e.who); state[e.who]={dead:true}; await wait(700); break; }
       case 'fangs': V.fangs(e.who,true); break;
+      case 'kickButt': { const prev=V.pos[e.by]?[...V.pos[e.by]]:null; const [x,y]=V.pos[e.who]||[0,0]; V.moveTo(e.by, x-16, y+4); await wait(650); if(e.variant!=='miss') V.bump(e.who,6,-8); await wait(350); if(prev) V.moveTo(e.by, prev[0], prev[1]); break; }
+      case 'stakeButt': if(e.step==='down'){ V.rope(e.who,false); V.stool(true); V.toStake(e.who,e.k||0); await wait(1200); V.impaled(e.who); state[e.who]={impaled:true, stakeK:e.k||0}; } else await wait(300); break;
+      case 'door': await wait(e.step==='knock'?500:350); break;
+      case 'chase': if(e.step==='start'){ chaseLast=(e.vills||[]).slice(-1)[0]; } else if(e.step==='bite'&&chaseLast){ V.dead(chaseLast); state[chaseLast]={dead:true}; } await wait(400); break;
+      case 'party': if(e.step==='dance') V.gather(); await wait(400); break;
       case 'lock': break;
       case 'pause': await wait(e.ms||600); break;
     }
