@@ -8,6 +8,19 @@ cp /home/claude/vampir-koylu/artifact/supabase.js "$OUT/supabase.js"
 find "$OUT/assets" -name "*.glb" | while read f; do python3 -c "
 import base64,json,sys; d=open(sys.argv[1],'rb').read(); json.dump({'b':base64.b64encode(d).decode()},open(sys.argv[1][:-4]+'.json','w'))" "$f"; rm "$f"; done
 rm -f "$OUT/assets/voice/.cb.json"; rm -rf "$OUT/assets/voice/f"  # önizlemede kadın sesi erkek kaydından türetilir (dosya sınırı)
+# Önizleme en çok 512 dosya tutar: simgeler ve yalnızca odalarda duyulan/az geçen birkaç replik çıkarılır
+# (çıkarılan replikler önizlemede cihazın kendi sesiyle okunur; APK ve web sürümünde hepsi kayıtlıdır)
+rm -rf "$OUT/icons"
+python3 - "$OUT/assets/voice" <<'PY'
+import json,os,sys
+d=sys.argv[1]; drop=['00fd80c2','bc47a70b','67eab164','aa63905c','608ab18e','d14ff146','df71fb09','97dd5bd3']
+m=json.load(open(d+'/index.json'))
+for k in drop:
+    m.pop(k,None)
+    try: os.remove(f'{d}/{k}.mp3')
+    except FileNotFoundError: pass
+json.dump(m,open(d+'/index.json','w'),separators=(',',':'))
+PY
 python3 - "$SRC/index.html" "$OUT/index.html" <<'PY'
 import sys
 s=open(sys.argv[1]).read()
