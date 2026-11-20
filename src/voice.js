@@ -57,6 +57,10 @@ function trimInfo(b){ let r=trims.get(b); if(r) return r; const d=b.getChannelDa
   r={ lead:Math.max(0,a/b.sampleRate-0.025), dur:Math.max(0.2,(z-a)/b.sampleRate+0.05) }; trims.set(b,r); return r; }
 function estimate(t){ const n=String(t||'').replace(/[….!?,]/g,'').trim().length; return Math.min(6000, 700+n*60); }
 
+/* hızlandırılmış sahne: replikler de hızlı okunur */
+let speechRate=1;
+export function setSpeechRate(v){ speechRate=Math.max(0.8,Math.min(2,+v||1)); }
+
 /**
  * Yönetmenin konuşturma işlevi. voice: { on }  (kapalıysa sessizce bekler)
  * speak(e, { skipping, wait, hold })
@@ -66,7 +70,7 @@ export function createSpeaker(voice){
   return async function speak(e, { skipping, wait, hold }){
     const text=e.voice||e.text||''; if(skipping()) return;
     if(!text.replace(/[….\s]/g,'')) return wait(650);
-    if(!voice?.on) return wait(estimate(e.text));
+    if(!voice?.on) return wait(estimate(e.text)/speechRate);
     await loadVoices();
     const key=voiceKey(text);
     const ctx=audioCtx();
@@ -76,7 +80,7 @@ export function createSpeaker(voice){
     if(skipping()) return;
     if(!buf) return deviceTTS(e,text,{ skipping, wait, hold });
     const fx=FX[e.t==='narr'?'narr':(e.arch||'player')]||FX.player; const scream=e.kind==='scream';
-    const src=ctx.createBufferSource(); src.buffer=buf; src.playbackRate.value=fx.rate*(scream?1.04:1)*(0.99+Math.random()*0.02);
+    const src=ctx.createBufferSource(); src.buffer=buf; src.playbackRate.value=fx.rate*(scream?1.04:1)*(0.99+Math.random()*0.02)*speechRate;
     const lo=ctx.createBiquadFilter(); lo.type='lowshelf'; lo.frequency.value=220; lo.gain.value=fx.low;
     const hi=ctx.createBiquadFilter(); hi.type='highshelf'; hi.frequency.value=3200; hi.gain.value=fx.high;
     const g=ctx.createGain(); g.gain.value=scream?1.0:0.95; const wet=ctx.createGain(); wet.gain.value=fx.rev;
@@ -97,7 +101,7 @@ function deviceTTS(e,text,{ skipping, wait, hold }){
   if(!('speechSynthesis' in window)) return wait(estimate(text));
   return new Promise(res=>{ let fin=false; let release=()=>{}; const done=()=>{ if(fin) return; fin=true; clearTimeout(t); release(); try{ speechSynthesis.cancel(); }catch(_){} res(); };
     try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='tr-TR'; const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith('tr')); if(v) u.voice=v;
-      if(e.kind==='scream'){ u.pitch=2; u.rate=1.25; } else if(e.t==='narr'){ u.pitch=.8; u.rate=.95; } else { u.pitch=Math.max(.1,Math.min(2,e.pitch||1)); u.rate=1.02; }
+      if(e.kind==='scream'){ u.pitch=2; u.rate=1.25; } else if(e.t==='narr'){ u.pitch=.8; u.rate=.95; } else { u.pitch=Math.max(.1,Math.min(2,e.pitch||1)); u.rate=1.02; } u.rate*=speechRate;
       u.onend=done; u.onerror=done; speechSynthesis.speak(u); }catch(_){ }
     release=hold?hold(done):()=>{}; const t=setTimeout(done,1600+text.length*95); });
 }

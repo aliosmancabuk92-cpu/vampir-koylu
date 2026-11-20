@@ -11,7 +11,7 @@ cp -r /home/claude/vampir-koylu/www/. . && touch .nojekyll
 git add -A
 git -c user.name="aliosmancabuk92-cpu" -c user.email="aliosmancabuk92@gmail.com" commit -q -m "$MSG
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01FaTXvFZkKiEmEzExXggfXB" || echo "değişiklik yok"
 git push -q origin gh-pages
 echo "yayında: https://aliosmancabuk92-cpu.github.io/vampir-koylu/"

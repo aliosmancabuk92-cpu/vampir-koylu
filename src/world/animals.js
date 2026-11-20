@@ -58,6 +58,7 @@ export function createAnimals(W,{ count=7, rIn=4.5, rOut=14.5 }={}){
   const off=W.tick((dt,t)=>{
     if(hidden) return;
     for(const c of list){ const p=c.g.position;
+      if(c.dead){ c.g.rotation.set(0,c.yaw,1.45); p.y=0.11; c.wl.rotation.z=-0.6; c.wr.rotation.z=0.6; c.head.rotation.x=0.9; continue; }   // sabah kümeste bulunan tavuk
       // kaçma: koşan ya da çok yaklaşan insan
       if(c.state!=='flee' && !c.pinned){ for(const a of W.actors){ if(!a.holder.visible||a.alpha<0.5) continue; a.holder.getWorldPosition(_v); const d=Math.hypot(_v.x-p.x,_v.z-p.z); const run=a.target&&a.spd>1.8;
           if(d<(run?2.4:0.75)){ flee(c,_v,run?1.2:0.7); break; } } }

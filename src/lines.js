@@ -18,7 +18,7 @@ const DEM={
   v:{ '':'garibim', e:'garibe', i:'garibi', in:'garibin', de:'garipte' },
   y:{ '':'gardaş', e:'gardaş', i:'gardaş', in:'gardaş', de:'gardaş' },
 };
-const ROLE_SP={ doktor:'doktorum', kahin:'kâhinim', 'kâhin':'kâhinim', koylu:'köylüyüm', 'köylü':'köylüyüm' };
+
 const capFirst=(x)=>x.replace(/(^|[.!?…]\s+)([a-zçğıöşü])/g,(m,a,b)=>a+(b==='i'?'İ':b.toLocaleUpperCase('tr')));
 /** Şablonun seslendirilecek (isimsiz) hâli */
 export function fillSpoken(t, neg=false, m={}){ return capFirst(t.replace(/\{(\w+?)(?:_(e|i|in|de))?\}/g,(_,k,kind)=>{ if(k==='role') return m.role||'köylüyüm'; const tb=(k==='t'&&neg)?DEM.tn:(DEM[k]||DEM.t); return tb[kind||'']; })); }
@@ -74,11 +74,12 @@ export const OPENING = [
   { who:0, text:'Bulamazsak her gece o vampircik birimizin kanını emer, nüfustan birini düşürür. Bulursak kalanlar yaşar, köyde hayat eskisi gibi devam eder.' },
   { who:4, text:'Başka çaremiz galmadı gardaş… Olsun la, başlayalım.' },
   { who:3, text:'Hadi o zaman! Herkes birbirine iyi baksın, kim şüpheli?' },
+  { who:0, text:'Akşam oldu. Bu gecelik herkes evine! Sabah meydanda toplanır, ilk şüpheliyi seçeriz.' },
 ];
 /* Kısa açılış (sonraki oyunlarda) */
 export const OPENING_SHORT = [
   { who:0, sfx:'bell', text:'Toplanın millet! Vampir yine aramızda. Bildiğiniz gibi: asarız, ölmezse kazığa!' },
-  { who:1, text:'Hadi la, kim şüpheli? Evlere bakın!' },
+  { who:1, text:'Hadi la herkes evine! Sabah ola hayrola.' },
 ];
 
 /* ---------------- GÜNDÜZ: ŞÜPHELİ SEÇİMİ ---------------- */
@@ -184,7 +185,7 @@ export const DAWN_DEAD = [
   'Ağlayın millet, {v_i} emmişler gece! Boynunda iki delik!',
   'Yine birini kaybettik: {v}. Bu vampir bizi bitirecek!',
 ];
-export const DAWN_SAVED = ['Sabah oldu. Vampir saldırdı ama doktor yetişmiş! Kimse ölmedi!','Gece kapı zorlanmış ama doktor sayesinde kimse gitmedi. Şükür!'];
+export const DAWN_SAVED = ['Sabah oldu. Vampir saldırdı ama hoca okuyup üflemiş! Kimse ölmedi!','Gece kapı zorlanmış ama hocanın duası tutmuş, kimse gitmedi. Şükür!'];
 export const DAWN_NONE = ['Sabah oldu. Bu gece kimse ölmedi… tuhaf.','Sessiz bi gece geçti. Vampir uyudu mu ne?'];
 
 /* ---------------- BİTİŞ ---------------- */
@@ -207,7 +208,7 @@ export const DEFEND = ['{t} masum la, eminim. Dün bütün gün yanımdaydı.','
 export const SEER_VAMP = ['Ben kâhinim la! Dün gece {t_e} baktım: VAMPİR!','Dinleyin, kâhin benim. {t} vampir, bugün asılmalı!'];
 export const SEER_CLEAN = ['Ben kâhinim. {t} temiz, ona oy vermeyin.','Kâhin benim ve {t_in} vampir olmadığını biliyom.'];
 export const COUNTER_SEER = ['Yalan söylüyo! Asıl kâhin benim ve dün gece {t_e} baktım: vampir!','Ben kâhinim. {t} kâhin değil, vampirin ta kendisi!'];
-export const DOCTOR_SAVED = ['Doktor benim. Dün gece {t_i} ben kurtardım.','Söylemek zorundayım: ben doktorum, {t_i} korudum.'];
+export const DOCTOR_SAVED = ['Hoca benim. Dün gece {t_i} ben okuyup korudum.','Söylemek zorundayım: ben hocayım, {t_i} korudum.'];
 export const QUIET = ['Bi şey bilmiyom. Herkes şüpheli.','Dikkatli olalım, yanlış kişiyi asarsak biteriz.','Ben kararsızım la.','Konuşanlara değil, susanlara bakın.','Dün gece hiç uyuyamadım…','Bi fikrim yok ama birini asmamız lazım.'];
 export const AFTER_KILL = ['{v} öldü… Kim yapmış olabilir la?','Zavallı {v}. Bu gece sırada kim var?'];
 
@@ -292,6 +293,7 @@ export const ACCUSE_WHY = {
   pushed: ['Dün masum adamı {t} astırdı! Unuttunuz mu?','{t} hep masumları gösteriyo. Bunda bi iş var!'],
   gut: ['İçimden bi ses {t} diyo. Bi tuhaf bakıyo bana.','{t_in} dişlerine bakın la, sivri sivri!'],
   lie: ['{t} yalan söyledi, yakaladım! Az önce başka diyodu!','{t_in} lafı tutmuyo, bi öyle diyo bi böyle!'],
+  clue: ['{t_in} kapısına gidiyo izler, daha ne olsun!','İpuçları {t_i} gösteriyo, gözünüzü açın!'],
 };
 export const DEFEND_WHY = {
   alibi: ['{t} dün gece benim yanımdaydı, birlikte çay içtik!','Dün gece {t} ile sabaha kadar okey oynadık!'],
@@ -356,3 +358,70 @@ export const LAST_WORD = [
   { key:'forgive', label:'Hakkımı helal ederim', text:'Son sözüm: hakkımı helal ediyom. Allah\'a emanet olun.' },
 ];
 export const INTERVENE = { support:['Durun! Ben {t_e} kefilim, asmayın!','Bu adamı asarsanız günaha girersiniz, durun!'], refute:['İnanmayın, yalan söylüyo! Asın gitsin!','Hepsi palavra! Asın, ölmezse belli olur!'] };
+
+/* =====================================================================
+   v5 — ipuçları, köy olayları, yeni roller, hayaletler
+   ===================================================================== */
+/* ilk sabah: kimse ölmez, tavuk gider */
+export const DAWN_CHICKEN = [
+  'Sabah oldu… Kümesteki tavuğu emmişler la! Vampir aramızda, şaka değil!',
+  'Millet! Tavuğun boynunda iki delik var! Bu gece tavuk, yarın gece biz!',
+  { h:'Hamuğa goduuum, en yağlı tavuğumu emmiş! Bunu yapanı bulacam!', s:'Vay anam, en yağlı tavuğumu emmiş! Bunu yapanı bulacam!' },
+];
+/* ipuçları: metinde evler sayılır, seste sayılmaz ({n} = isimler) */
+export const CLUE = {
+  iz: 'Çamurlu ayak izleri var! Şu evlerden birine gidiyo.',
+  kopek: 'Gece köpek şu evlerin önünde havlamış.',
+  tuy: 'Tavuk tüyleri şu kapıların önüne dökülmüş.',
+  kan: 'Eşikte kan damlası bulduk! Şu evlerden birinin önünde.',
+  baca: 'Gece şu evlerin bacası tütmüyodu.',
+  ay: 'Dolunayda her şey görünür! Bu iz kesin vampirin.',
+  dugun: 'Halay çekilirken biri ortadan kayboldu! Şunlardan biri.',
+  hayalet: 'Rüyamda bi hayalet fısıldadı la! Şu evlerden biri vampirmiş.',
+};
+export const CLUE_NONE = ['Bu sabah ne iz var ne işaret. Vampir temiz çalışmış.'];
+export const CLUE_TALK = ['İzler yalan söylemez la!','Bu iz bana sonradan konmuş gibi geldi…','Ayak izine bakın, kimin pabucuna uyuyo?'];
+/* köy olayları */
+export const EVENT = {
+  sis: ['Köyü sis bastı la! Göz gözü görmüyo, iz miz arama bu sabah.'],
+  firtina: ['Hava dönüyo. Bu gece fırtına var, bekçi bile burnunun ucunu göremez!'],
+  dolunay: ['Bu gece dolunay var! Vampir azar, iki kapı birden çalabilir. Ama ay ışığında izi de belli olur!'],
+  pazar: ['Bugün pazar günü! Herkes meydanda, uzun uzun konuşalım.'],
+  dugun: ['Bugün köyde düğün var! Düğün günü adam asılmaz, günah!'],
+};
+export const WEDDING = ['Çalsın davullar! Bugün asmak yok, oynamak var!','Hadi halaya! Dertleri yarın düşünürüz!'];
+/* yeni roller */
+export const BEKCI_SAW = ['Bekçi benim! Dün gece {t} evinden çıktı, fenerimle gördüm!','Ben bekçiyim la! {t_i} gece sokakta gördüm, yemin ederim!'];
+export const BEKCI_HOME = ['Bekçi benim. {t} dün gece evindeydi, kapısı hiç açılmadı.'];
+export const GOSSIP = ['Kulağıma geldi: ya {t} ya {o}… İkisinden biri gece dışardaymış!','Çeşme başında duydum: {t} ile {o}, birinin gece evde olmadığı kesin!'];
+export const DELI_TALK = ['Ben vampirim la! Yok yok, şaka şaka… Yoksa değil mi?','Asın beni! Bi denesenize, noolcak?','Dün gece aya karşı uludum ben, heh heh!'];
+export const DELI_PLEAD = ['Asın la asın! Benim de istediğim buydu, heh heh heeey!','Oh be, sonunda! İpi sıkı bağlayın!'];
+export const DELI_WIN = ['Eyvah! Deliyi astık la! Oyuna geldik!','Deliymiş bu! Bile bile astırdı kendini, tüh!'];
+export const DELI_NARR = 'Köy deliyi astı! Oyunu deli kazandı!';
+export const LOVER_DEATH = ['{v} sevdiğinin acısına dayanamadı… O da gitti.'];
+export const LOVER_DEFEND = ['{t} benim canım, ciğerim! Ona dokunan beni çiğner!','{t_e} laf eden karşısında beni bulur!'];
+export const AGA_CLAIM = ['Ben bu köyün ağasıyım! Oyum iki sayılır, beni asarsanız vampir sevinir!'];
+/* beraberlik: söz düellosu */
+export const DUEL_INTRO = 'Oylar eşit çıktı! İki şüpheli söz düellosu yapsın, köy yeniden seçsin!';
+export const DUEL = ['Bana değil ona bakın! Benim alnım ak!','Ben bu köyün ekmeğini yedim, ihanet etmem!','O benden şüpheli, yüzü kızardı bak!','Ya o ya ben diyosanız: o!'];
+/* hafıza + ilişkiler */
+export const MEMORY = {
+  again: ['Dün de beni suçlamıştın {y}, bugün yine mi? Bi derdin var senin!','{y}, kaç gündür bana takmışsın! Asıl sen şüphelisin!'],
+  friend: ['Dün vampiri savunan {t} değil miydi? Hadi bakalım!'],
+};
+export const FEUD = ['{t} bana on yıldır küs, tarla sınırı yüzünden. Ama vampirlik de yapar bu!','{t_in} gözü hep benim tarlamdaydı zaten!'];
+export const BUDDY = ['{t} benim kirvem, o yapmaz!','{t} ile asker arkadaşıyız, kefilim!'];
+/* odada tepki düğmeleri */
+export const REACT = { yuh:'Yuuuh!', hah:'Hah hah haaa!', vallahi:'Vallahi o, billahi o!', hadi:'Hadi ordan!', helal:'Helal olsun la!' };
+/* hayaletler */
+export const TOMATO_HIT = ['Ayy! Kim attı la bu domatesi?','Domates mi yağıyo gökten?!','Hayaletler azdı yine!'];
+export const RATTLE = ['Kim o? Kapıyı kim tıkırdatıyo?!'];
+/* rol açıklama (savunmada) */
+export const ROLE_CLAIM = 'Dinleyin beni: ben {role}! Beni asarsanız köy biter.';
+export const HOCA_CLAIM = ['Ben hocayım! Beni asarsanız geceleri kimse korunmaz!'];
+export const HOCA_SAVED = ['Hoca benim, dün gece kurtaran bendim.'];
+export const HOCA_PLAIN = ['Ben hocayım, bana dokunmayın.'];
+/** ipucu cümlesi: ekranda evler sayılır, seste sayılmaz */
+export function clueLine(kind,names){ const base=CLUE[kind]||CLUE.iz; return regSpoken(`${base.slice(0,-1)}: ${names.join(', ')}.`, base); }
+/** "Meğer hocaymış!" — rol ortaya çıkınca */
+export function revealLine(name,reveal){ return regSpoken(`${name} ${reveal}.`, `Meğer ${reveal}!`); }

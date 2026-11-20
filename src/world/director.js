@@ -57,7 +57,8 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
 
   /* ---------------- yardımcılar ---------------- */
   let skipping=false; const wakes=new Set();
-  const wait=(ms)=> skipping?Promise.resolve():new Promise(res=>{ const w=()=>{ clearTimeout(t); wakes.delete(w); res(); }; const t=setTimeout(w,ms); wakes.add(w); });
+  let baseTS=1;   // ⏩ Hızlandır: 1 = normal, ~1.9 = hızlı
+  const wait=(ms)=> skipping?Promise.resolve():new Promise(res=>{ const w=()=>{ clearTimeout(t); wakes.delete(w); res(); }; const t=setTimeout(w,ms/baseTS); wakes.add(w); });
   /** oyun zamanında bekle (ağır çekimde yavaşlar) */
   const gwait=(ms)=> (skipping||ms<=0)?Promise.resolve():new Promise(res=>{ let t=0, off=null; const done=()=>{ if(off){ off(); off=null; } wakes.delete(done); res(); }; off=wtick((dt)=>{ t+=dt*1000; if(t>=ms) done(); }); wakes.add(done); });
   const race=(p,ms)=>Promise.race([p,wait(ms)]);
@@ -83,9 +84,11 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
   /* ---------------- efektler ---------------- */
   const FXS=createFX(W.scene, W.renderer.getPixelRatio()); wtick((dt)=>FXS.update(dt));
   let smTok=0;
-  function slowmo(scale=0.3,hold=600,ramp=450){ if(skipping) return; const tok=++smTok; W.setTimeScale(scale);
-    setTimeout(()=>{ if(tok!==smTok) return; const t0=performance.now(); const step=()=>{ if(tok!==smTok) return; const k=Math.min(1,(performance.now()-t0)/ramp); W.setTimeScale(scale+(1-scale)*k*k); if(k<1) setTimeout(step,16); }; step(); },hold); }
-  function normalTime(){ smTok++; W.setTimeScale(1); }
+  function slowmo(scale=0.3,hold=600,ramp=450){ if(skipping||baseTS>1) return; const tok=++smTok; W.setTimeScale(scale);
+    setTimeout(()=>{ if(tok!==smTok) return; const t0=performance.now(); const step=()=>{ if(tok!==smTok) return; const k=Math.min(1,(performance.now()-t0)/ramp); W.setTimeScale(scale+(baseTS-scale)*k*k); if(k<1) setTimeout(step,16); }; step(); },hold); }
+  function normalTime(){ smTok++; W.setTimeScale(baseTS); }
+  /* ekran ortasında kısa duyuru (köy olayı) */
+  function banner(html,ms=2600){ if(skipping) return; const d=document.createElement('div'); d.className='w3d-ban'; d.innerHTML=html; W.overlay.appendChild(d); requestAnimationFrame(()=>d.classList.add('on')); setTimeout(()=>{ d.classList.remove('on'); setTimeout(()=>d.remove(),500); },ms/baseTS); }
   // sinematik şeritler + perde (kararma / kırmızı parlama)
   const mk=(css)=>{ const d=document.createElement('div'); d.style.cssText='position:absolute;left:0;right:0;pointer-events:none;'+css; W.overlay.appendChild(d); return d; };
   const barT=mk('top:0;height:0;background:#000;z-index:3'), barB=mk('bottom:0;height:0;background:#000;z-index:3');
@@ -450,7 +453,8 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
         SH.pan();
         break; }
       case 'home': {
-        camLock=false; bars(false); lookAllAt(null); W.unlabelAll('l:'); W.unlabelAll('b:');
+        camLock=false; bars(false); lookAllAt(null); W.unlabelAll('l:'); W.unlabelAll('b:'); W.unlabelAll('cl:');
+        if(dirs.chick){ const ch=dirs.chick; dirs.chick=null; ch.dead=false; ANI.release(ch); }
         if(curPhase==='day') phase('dusk',3);
         if(!skipping) camMv(V3(0,13,19),V3(0,0.5,-2),{ dur:3.4, fov:55 });
         await toHomes(inSquare());
@@ -942,7 +946,7 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
           const PC=V3(0,0,-0.4); D.center=PC; const n=list.length, span=Math.min(2.5,(n-1)*0.5);
           list.forEach((c,i)=>{ const a=n===1?0:-span/2+span*i/(n-1); const x=PC.x+Math.sin(a)*2.5, z=PC.z-Math.cos(a)*2.5+1.0; c.V.place(x,z,Math.atan2(PC.x-x,PC.z+3-z)); });
           // ölenler damlardan izler (hayalet)
-          D.ghosts=[]; for(const g of [...cast.values()].filter(c=>c.state==='dead'&&c.house)){ const h=g.house; own(g); g.V.setPose(null); const p=h.pos.clone().multiplyScalar(0.97); g.V.place(p.x,p.z,Math.atan2(-p.x,-p.z),h.H.height-0.15); g.V.setOpacity(0.42); g.V.holder.visible=true; g.state='ghost'; D.ghosts.push(g); g.V.fixed=true; danceLoop(g,['joy','happy','happy2','wave']); }
+          D.ghosts=[]; if(!e.brief) for(const g of [...cast.values()].filter(c=>c.state==='dead'&&c.house)){ const h=g.house; own(g); g.V.setPose(null); const p=h.pos.clone().multiplyScalar(0.97); g.V.place(p.x,p.z,Math.atan2(-p.x,-p.z),h.H.height-0.15); g.V.setOpacity(0.42); g.V.holder.visible=true; g.state='ghost'; D.ghosts.push(g); g.V.fixed=true; danceLoop(g,['joy','happy','happy2','wave']); }
           lookAllAt(null); if(!skipping) SH.square(1.2); await wait(400);
           break; }
         if(e.step==='slap'){ const a=C(e.by), b=C(e.to); if(!a||!b||a===b) break;
@@ -956,8 +960,18 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
           // tokatı atan yerinde kalır, kamera ikiliyi tutmaya devam eder (laf sokma bu çekimde söylenir)
           await gwait(800); a.V.fixed=false; b.V.fixed=false; a.V.idle(); b.V.idle(); b.V.lookAt(a.V.holder.position.clone().setY(1.55)); lastSpk=null;
           break; }
+        if(e.step==='stop'){
+          // düğün bitti: halay dağılır, herkes yerine döner
+          if(!skipping) await gwait(e.ms||6500);
+          try{ SFX.stopMusic(0.8); }catch(_){}
+          if(D.halayOff){ D.halayOff(); D.halayOff=null; }
+          if(D.mendil){ if(D.mendil.parent) D.mendil.parent.remove(D.mendil); D.mendil.geometry.dispose(); D.mendil.material.dispose(); D.mendil=null; }
+          D.halayPos=null; D.keepCam=false; untrack(); camLock=false;
+          for(const c of (D.list||[])){ if(!c.alive) continue; own(c); calm(c); ungrab(c,'l'); ungrab(c,'r'); c.V.fixed=false; c.V.setPose(null); c.V.lookAt(null); c.state='square'; c.V.place(c.spot.x,c.spot.z,c.spot.yaw); c.V.idle(); }
+          dirs.party=null; phase('day',2); if(!skipping){ SH.square(1.4); await wait(500); }
+          break; }
         if(e.step==='dance'){
-          camLock=true; D.keepCam=!skipping; sfx('music','party',{ vol:.6 }); const list=(D.list||inSquare()).filter(c=>c.alive&&c.V.holder.visible);
+          camLock=true; D.keepCam=!skipping&&!e.brief; sfx('music','party',{ vol:.6 }); const list=(D.list||inSquare()).filter(c=>c.alive&&c.V.holder.visible);
           for(const c of list){ own(c); calm(c); c.V.lookAt(null); c.state='dance'; restoreHat(c); }
           if(e.halay && list.length>=4){ const n=list.length; const R=2.3; let a0=0; const span=Math.min(Math.PI*1.35,(n-1)*0.205);
             list.forEach(c=>{ c.V.fixed=true; c.V.mocap('halay',{ loop:true, inPlace:true, lockYaw:true, speed:0.5, fade:.4 }); updateAfter(c); });
@@ -982,6 +996,31 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
       case 'stance': { W.unlabelAll('st:'); clearTimeout(dirs.stT); for(const [id,m] of Object.entries(e.marks||{})){ const c=C(id); if(!c||!c.V.holder.visible||c.state!=='square') continue; W.label('st:'+id,`<div class="stc">${m}</div>`,(v)=>{ if(!c.V.holder.visible) return null; c.V.headPos(v); v.y+=0.55; return v; }); } dirs.stT=setTimeout(()=>W.unlabelAll('st:'),4200); break; }
       case 'fangs': { const c=C(e.who); if(!c) break; if(c.state!=='square'){ await toSquare([c]); } c.V.setVampire(1); c.V.once('Spell_Simple_Enter'); break; }
       case 'pause': await wait(e.ms||600); break;
+
+      /* ===== v5: ipuçları, köy olayları, hayalet şakaları ===== */
+      case 'clue': { const K={ iz:'👣', kopek:'🐕', tuy:'🪶', kan:'🩸', baca:'🏚️', ay:'🌕', dugun:'🥁', hayalet:'👻' }[e.kind]||'👣';
+        let n=0; const mid=V3(0,0,0); for(const id of e.ids||[]){ const c=C(id); if(!c||!c.house) continue; W.label('cl:'+e.id+':'+id,`<div class="bdg clu">${K}</div>`,housePos(c,0.55)); mid.add(c.house.pos); n++; }
+        if(n && !skipping && !NOCAM() && !camLock && mode!=='talk'){
+          // izli evler karşıda kalacak biçimde, meydanın öbür ucundan geniş bakış (evler dağınıksa ilk eve dön)
+          const dir=V3(0,0,0); let first=null; for(const id of e.ids||[]){ const c=C(id); if(!c||!c.house) continue; const u=V3(c.house.pos.x,0,c.house.pos.z).normalize(); if(!first) first=u.clone(); dir.add(u); }
+          if(dir.length()<0.45*n) dir.copy(first); dir.normalize(); const sd=V3(dir.z,0,-dir.x); W.setFrameShift(0.1);
+          camMv(V3(-dir.x*15,13,-dir.z*15).addScaledVector(sd,1.5),V3(dir.x*5,1.4,dir.z*5),{ dur:2.2, fov:60 }); }
+        if(n) await wait(700); break; }
+      case 'chicken': { if(skipping) break; const p=V3(3.4,0,5.2); try{ ANI.show(true); const ch=ANI.place(0,p.x,p.z,0.6); ch.dead=true; dirs.chick=ch; FXS.feathers(V3(p.x,0.35,p.z),20); sfx('squawk'); }catch(_){}
+        if(!NOCAM()){ cam(V3(p.x+1.5,0.85,p.z+2.3),V3(p.x,0.2,p.z),42,0,0.05); camMv(V3(p.x+1.1,0.7,p.z+1.8),V3(p.x,0.18,p.z),{ dur:2.4, fov:40 }); }
+        await wait(1500); break; }
+      case 'event': { const E={ sis:['🌫️','Sis'], firtina:['⛈️','Fırtına geliyor'], dolunay:['🌕','Bu gece dolunay'], pazar:['🧺','Pazar günü'], dugun:['🥁','Köyde düğün var'] }[e.k]; if(!E) break;
+        banner(`<span>${E[0]}</span>${E[1]}`); if(e.k==='firtina') sfx('whoosh'); if(e.k==='dolunay') sfx('howl'); await wait(600); break; }
+      case 'duel': { for(const id of e.ids||[]){ const c=C(id); if(c&&c.house) W.label('b:du'+id,`<div class="bdg clu">⚔️</div>`,housePos(c,1.1)); } await wait(500); break; }
+      case 'tomato': { const c=C(e.who); if(!c||!c.V.holder.visible||c.V.alpha<0.5||skipping) break;
+        const h=c.V.headPos(V3()); const from=W.CAM.pos.clone().add(V3((Math.random()-.5)*1.2,-0.5,0)); const dirT=h.clone().sub(from).normalize();
+        const m=new THREE.Mesh(new THREE.SphereGeometry(0.085,10,8),new THREE.MeshStandardMaterial({ color:0xd4281c, roughness:.45 })); W.scene.add(m); sfx('whoosh');
+        await tween(380,(t)=>{ m.position.lerpVectors(from,h,t); m.position.y+=Math.sin(t*Math.PI)*0.5; });
+        W.scene.remove(m); m.geometry.dispose(); m.material.dispose();
+        FXS.blood(h,V3(dirT.x*0.4,0.5,dirT.z*0.4),16,1.4); sfx('slap'); W.shake(0.03);
+        if(c.state==='square'&&!c.V.fixed&&!c.gest){ c.V.play('Hit_Head',{ once:true, restart:true, fade:.06 }); setTimeout(()=>{ if(c.state==='square'&&!c.V.fixed) c.V.idle(); },900); }
+        await wait(450); break; }
+      case 'rattle': { const c=C(e.who); if(!c||!c.house||skipping) break; for(let i=0;i<3;i++){ sfx('knockDoor',2); W.rattleDoor(c.id,0.7); await wait(170); } break; }
     }
   }
   let finalK=0;
@@ -1046,6 +1085,8 @@ export function createDirector(world, { players, voice, onLine, onPick, speak:sp
       stoolsReset();
     },
     reset(){ queue=[]; skipping=false; normalTime(); try{ SFX.stopMusic(0.4); }catch(e){} },
+    /** ⏩ sahneyi hızlandır / normale dön */
+    setFast(on){ baseTS=on?1.9:1; smTok++; W.setTimeScale(baseTS); },
     setMode(m){ if(m===mode){ refreshLabels(); return; } mode=m; applyMode(); },
     setCandidates(ids){ candidates=ids&&ids.length?ids:null; refreshLabels(); },
     highlight(id,on){

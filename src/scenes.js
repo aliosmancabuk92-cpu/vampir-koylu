@@ -11,18 +11,19 @@ const shuf=(io,a)=>{ a=[...a]; for(let i=a.length-1;i>0;i--){ const j=Math.floor
 const byArch=(list,keys)=>{ for(const k of keys){ const p=list.find(x=>x.arch===k); if(p) return p; } return null; };
 
 /* ---------------- 1) EVDEN ALMA: kapı baskını ---------------- */
-export function dragScene(io,{ acc, others }){
+/** short: aynı oyunda ikinci ve sonraki baskınlar kısa oynar */
+export function dragScene(io,{ acc, others, short=false }){
   const crowd=shuf(io,others).slice(0,4);
   if(!crowd.length){ io.ev({ t:'drag', target:acc.id, crowd:[], variant:'one' }); io.ev({ t:'escort', who:acc.id, crowd:[] }); return; }
   // tekmeciler: zayıf olan delikanlı/deli, güçlü olan demirci/dayıoğlu
   const weak=byArch(crowd,['delikanli','deli','coban','kahveci'])||crowd[0];
   const strong=byArch(crowd.filter(p=>p!==weak),['demirci','dayioglu','kufurbaz','bekci','memis'])||crowd.find(p=>p!==weak)||null;
-  const r=io.rnd(); const variant=(strong && r<0.5)?'fail':(r<0.78?'one':'open');
+  const r=io.rnd(); const variant=short?(r<0.75?'one':'open'):((strong && r<0.5)?'fail':(r<0.78?'one':'open'));
   const order=[weak,strong,...crowd.filter(p=>p!==weak&&p!==strong)].filter(Boolean);
   io.ev({ t:'drag', target:acc.id, crowd:order.map(p=>p.id), variant });
   const knocker=order[order.length>1?1:0];
   io.say(knocker,pk(io,LN.DOOR.knock)); io.ev({ t:'door', step:'knock' });
-  io.say(acc,pk(io,LN.DOOR.inside),'inside');
+  if(!short) io.say(acc,pk(io,LN.DOOR.inside),'inside');
   const teaser=order.find(p=>p!==weak&&p!==strong)||strong||weak;
   if(variant==='fail'){
     io.say(weak,pk(io,LN.DOOR.weak)); io.ev({ t:'door', step:'weak', by:weak.id });
@@ -38,22 +39,22 @@ export function dragScene(io,{ acc, others }){
     io.say(weak,pk(io,LN.DOOR.fell)); io.say(teaser,pk(io,LN.DOOR.open)); io.sfx('laugh');
   }
   io.ev({ t:'door', step:'cling' });
-  io.say(acc,pk(io,LN.DOOR.cling));
-  io.say(order[0],pk(io,LN.DRAG.crowd));
+  if(!short){ io.say(acc,pk(io,LN.DOOR.cling)); io.say(order[0],pk(io,LN.DRAG.crowd)); }
   io.say(acc,pk(io,LN.DRAG.accused));
   io.ev({ t:'escort', who:acc.id, crowd:order.map(p=>p.id) });
 }
 
 /* ---------------- 2) DARAĞACI + (vampirse) arkadan tekme + kazık ---------------- */
-export function executeScene(io,{ acc, alive, pleaded=false, preferKicker=null, onStakeK }){
+/** short: tekrar eden infazlar kısa; shortVamp: ikinci vampirde tek tekme, iki bastırma */
+export function executeScene(io,{ acc, alive, pleaded=false, preferKicker=null, onStakeK, short=false, shortVamp=false }){
   const others=alive.filter(p=>p!==acc);
   io.sfx('drum');
-  if(!pleaded) io.say(acc,pk(io,LN.PLEAD));
+  if(!pleaded) io.say(acc,pk(io,acc.role==='deli'?LN.DELI_PLEAD:LN.PLEAD));
   const ex=byArch(others,['demirci','bekci','muhtar'])||others[0]||null;
   io.ev({ t:'stool', who:acc.id, ex:ex?.id });
-  if(ex){ io.say(ex,pk(io,LN.EXECUTIONER)); io.say(ex,pk(io,LN.GALLOWS.knot)); }
-  io.say(acc,pk(io,LN.GALLOWS.last));
-  const looker=shuf(io,others.filter(p=>p!==ex))[0]; if(looker) io.say(looker,pk(io,LN.GALLOWS.look));
+  if(ex){ io.say(ex,pk(io,LN.EXECUTIONER)); if(!short) io.say(ex,pk(io,LN.GALLOWS.knot)); }
+  if(!short){ io.say(acc,pk(io,LN.GALLOWS.last));
+    const looker=shuf(io,others.filter(p=>p!==ex))[0]; if(looker) io.say(looker,pk(io,LN.GALLOWS.look)); }
   io.sfx('thud'); io.sfx('creak');
   if(acc.role!=='vampir'){ io.ev({ t:'hang', who:acc.id, vamp:false }); return { vamp:false }; }
 
@@ -62,7 +63,7 @@ export function executeScene(io,{ acc, alive, pleaded=false, preferKicker=null, 
   io.say(acc,pk(io,LN.VAMPIRE_HANGED_LINES));
   // arkadan kıça tekme: 2-3 kişi; biri ıskalar ya da geri dönen bedene çarpar
   const kick=shuf(io,others.filter(p=>p.role!=='vampir')); if(preferKicker && kick.includes(preferKicker)){ kick.splice(kick.indexOf(preferKicker),1); kick.unshift(preferKicker); }
-  const kickers=kick.slice(0,Math.min(3,kick.length));
+  const kickers=kick.slice(0,Math.min(shortVamp?1:3,kick.length));
   const flop=kickers.length>1?1+Math.floor(io.rnd()*(kickers.length-1)):-1; const flopKind=io.rnd()<.5?'back':'miss';
   kickers.forEach((k,i)=>{
     const variant=i===flop?flopKind:'hit';
@@ -82,9 +83,9 @@ export function executeScene(io,{ acc, alive, pleaded=false, preferKicker=null, 
     io.ev({ t:'stakeButt', who:acc.id, k, step:'hold' });
     if(holders[0]) io.say(holders[0],pk(io,LN.STAKE_BUTT.hold));
     io.say(acc,pk(io,LN.STAKE_BUTT.beg));
-    if(holders[1]) io.say(holders[1],pk(io,LN.STAKE_BUTT.ask));
-    if(staker) io.say(staker,pk(io,LN.STAKE_BUTT.answer));
-    for(let i=0;i<3;i++){
+    if(!shortVamp){ if(holders[1]) io.say(holders[1],pk(io,LN.STAKE_BUTT.ask));
+      if(staker) io.say(staker,pk(io,LN.STAKE_BUTT.answer)); }
+    for(let i=0;i<(shortVamp?2:3);i++){
       const who=i===1&&holders[0]?holders[0]:staker;
       if(who) io.say(who,pk(io,LN.STAKE_BUTT.push));
       io.ev({ t:'stakeButt', who:acc.id, k, step:'push', n:i });
@@ -95,7 +96,7 @@ export function executeScene(io,{ acc, alive, pleaded=false, preferKicker=null, 
     return { vamp:true, ash:true, k };
   }
   io.ev({ t:'impale', who:acc.id, k });
-  for(let i=0;i<3;i++){ const h=holders[i%Math.max(1,holders.length)]; if(h) io.say(h,pk(io,LN.IMPALE)); io.sfx('scream'); io.say(acc,pk(io,LN.SCREAMS),'scream'); }
+  for(let i=0;i<(shortVamp?2:3);i++){ const h=holders[i%Math.max(1,holders.length)]; if(h) io.say(h,pk(io,LN.IMPALE)); io.sfx('scream'); io.say(acc,pk(io,LN.SCREAMS),'scream'); }
   io.sfx('impale'); io.sfx('cheer');
   const f=holders[0]||staker; if(f) io.say(f,pk(io,LN.AFTER_IMPALE));
   return { vamp:true, ash:false, k };
@@ -144,4 +145,19 @@ export function villageWinScene(io,{ alive }){
   io.ev({ t:'party', step:'dance', halay:n>=5 });
   io.say(L[0],pk(io,LN.END_PARTY.dance));
   io.narr('Son vampir de gitti. Köy kurtuldu!');
+}
+
+/* ---------------- 4) DÜĞÜN: bugün asmak yok, kısa bir halay ---------------- */
+export function weddingScene(io,{ alive }){
+  const L=shuf(io,alive); if(!L.length) return;
+  io.ev({ t:'party', step:'start', who:L.map(p=>p.id), brief:true });
+  io.say(L[0],pk(io,LN.WEDDING));
+  io.ev({ t:'party', step:'dance', halay:L.length>=5, brief:true });
+  io.say(L[1]||L[0],pk(io,LN.END_PARTY.dance));
+  io.ev({ t:'party', step:'stop' });
+}
+/* ---------------- 5) SÖZ DÜELLOSU: beraberlikte iki şüpheli birer laf eder ---------------- */
+export function duelScene(io,{ a, b }){
+  io.narr(LN.DUEL_INTRO); io.ev({ t:'duel', ids:[a.id,b.id] });
+  const L=shuf(io,LN.DUEL.map(x=>x)); io.say(a,L[0]); io.say(b,L[1]);
 }

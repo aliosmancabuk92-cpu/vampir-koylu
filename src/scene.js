@@ -10,7 +10,8 @@ export function createScene({ village, voice, onLine, speak:speakImpl=null }){
   const state={}; // görsel kalıcı durum {id:{dead,hanged,impaled}}
   V.state=state;
 
-  const wait=(ms)=> skipping ? Promise.resolve() : new Promise(res=>{ const t=setTimeout(()=>{ wakeUp=null; res(); },ms); wakeUp=()=>{ clearTimeout(t); wakeUp=null; res(); }; });
+  let TS=1;   // hızlandırma: beklemeler kısalır
+  const wait=(ms)=> skipping ? Promise.resolve() : new Promise(res=>{ const t=setTimeout(()=>{ wakeUp=null; res(); },ms/TS); wakeUp=()=>{ clearTimeout(t); wakeUp=null; res(); }; });
 
   function trVoice(){ if(!('speechSynthesis' in window)) return null; const vs=speechSynthesis.getVoices(); return vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith('tr'))||null; }
   function speak(e){
@@ -30,7 +31,7 @@ export function createScene({ village, voice, onLine, speak:speakImpl=null }){
         u.onend=done; u.onerror=done;
         speechSynthesis.speak(u);
       }catch(err){ /* sessiz */ }
-      const t=setTimeout(done, 1600+plain.length*95);
+      const t=setTimeout(done, (1600+plain.length*95)/TS);
       wakeUp=done;
     });
   }
@@ -83,6 +84,7 @@ export function createScene({ village, voice, onLine, speak:speakImpl=null }){
     play(events, done){ queue.push(...events); if(done) doneCbs.push(done); run(); },
     skip(){ if(!running) return; skipping=true; try{ speechSynthesis.cancel(); }catch(e){} V.clearBubbles(); if(wakeUp) wakeUp(); },
     get busy(){ return running; },
+    setFast(on){ TS=on?1.8:1; },
     /** Kalıcı durumu tek seferde uygula (yeniden bağlanma / atlama sonrası) */
     sync(vs){ Object.keys(state).forEach(k=>delete state[k]); Object.assign(state, vs); V.applyState(vs); },
     reset(){ queue=[]; skipping=false; Object.keys(state).forEach(k=>delete state[k]); },

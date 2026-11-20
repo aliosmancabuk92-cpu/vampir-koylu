@@ -4,8 +4,18 @@ Herkes kendi telefonundan oynar; oda açan telefon **anlatıcı** olur ve sesli 
 Bağlantı Supabase Realtime üzerinden (Wi-Fi veya mobil veri; internet gerekir).
 
 ## Modlar
-- **Tek Oyna**: botlara karşı, 4 bölüm / 24 seviye, yıldız + XP + rütbe, serbest oyun, istatistik. İnternet gerekmez; ilerleme telefonda saklanır.
+- **Tek Oyna**: botlara karşı, 5 bölüm / 30 seviye, yıldız + XP + rütbe, serbest oyun, istatistik. İnternet gerekmez; ilerleme telefonda saklanır.
 - **Arkadaşlarla Oyna**: Supabase Realtime ile odalı çok oyunculu. Oda en fazla 16 kişi; kaç arkadaş gelirse gelsin oda sahibi istediği kadar bot ekleyebilir (cinsiyet ve kolay/orta/zor seviye seçilebilir, "8/12/16'ya tamamla"). Arkadaş katılınca oda doluysa bir botun yerine geçer.
+
+## Oyun akışı (v5 "köy hayatı")
+- **İlk gece kimse ölmez**: vampir kümese iner; sabah ilk ipuçları çıkar. Sonraki gecelerde herkes telefonundan bir seçim yapar (vampir: ısır + isteğe bağlı sahte iz; hoca: koru; kâhin: bak; bekçi: gözetle; köylü: pencereden gözetle ya da yat).
+- **Sabah ipuçları**: her ipucu 2-3 evi gösterir; gerçek, boş ya da vampirin bıraktığı sahte iz olabilir. Günde bir ipucu incelenebilir (%75 doğru).
+- **Köy olayları** (2. günden itibaren): sis, fırtına, dolunay, pazar, düğün.
+- **Meydan → seçim → savunma → kilitli oy → infaz**; oylar eşitse söz düellosu. Tekrarlayan sahneler kısalır; her sahne hızlandırılabilir/geçilebilir.
+- **Hayaletler**: ölenler domates atar, kapı tıkırdatır, bahse girer, bir kez fısıldar.
+- **Odalarda** süreler kendiliğinden işler (çoğunluk sahneyi izleyince devam), tepki düğmeleri vardır, bağlantısı kopanın yerine bot oynar.
+- **Oyun sonu**: ödüller, gün gün özet, paylaşılabilir sonuç kartı (PNG).
+- Kurallar tek yerde: `src/rules.js` (roller, gece çözümü, ipuçları, olaylar, ödüller) — tek oyunculu motor ve oda sunucusu aynı kuralları kullanır.
 
 ## 3B sürüm (sinematik köy)
 - `src/world/world.js` — three.js köy dünyası: gökyüzü ve ışık evreleri (gündüz/akşam/gece/şafak/kıyamet/bayram), Anadolu evleri, meydan, çeşme, dar ağacı, kazıklar, meşaleler, ağaçlar, parçacıklar, kamera yönetmeni, etiketler, kalite ayarı
@@ -32,9 +42,12 @@ python3 tools/voice-install.py && tools/voice-female.sh
 
 ## Klasörler
 - `index.html`  — giriş, çok oyunculu mod, ses
+- `src/rules.js` — ortak kurallar (roller, gece çözümü, ipuçları, köy olayları, ödüller)
 - `src/solo-engine.js` — tek oyunculu motor (bot zekâsı, şüphe modeli, seviyeler)
 - `src/solo-ui.js` — tek oyunculu arayüz (harita, oyun ekranları, kayıt)
 - `src/multi.js` — odalı mod: host mantığı + köy sahneli ekranlar
+- `src/bots.js` — odalardaki botların zekâsı (hafıza, husumet/ahbaplık, ipucu okuma)
+- `src/ui-bits.js` — iki modun ortak arayüz parçaları (ipucu kartları, hayalet paneli, ödüller, paylaşım kartı)
 - `src/village.js` — köy sahnesi (evler, meydan, dar ağacı, kazık, figürler)
 - `src/scene.js` — sahne oynatıcı (olay sırası, baloncuk, sesli okuma)
 - `src/sfx.js` — sentezlenmiş ses efektleri (telifsiz)
@@ -56,13 +69,14 @@ Android Studio ile `android/` klasörünü açıp **Build > Build APK** de yapı
 
 ## Testler
 ```bash
-node test/sim.mjs 300  # her seviye 300 oyun: denge raporu
-node test/village-shots.mjs  # tek oyunculu tam akış + ekran görüntüleri
-node test/mp-e2e.mjs        # odalı mod, 4 oyuncu: bırakma, gece, kazık, yeni oyun
+node test/sim.mjs 300     # her seviye 300 oyun: denge raporu (motor)
+node test/mp-sim.mjs 400  # oda sunucusu stres testi (botlar, kopan oyuncu, hayaletler, tepkiler)
+node test/app3d.mjs 1 low # tek oyunculu tam akış, 3B + ekran görüntüleri (GHOST=1: hayalet modu)
+node test/mp3d.mjs        # odalı mod, 4 tarayıcı: ilk gece, ipucu, asma, hayalet, rövanş
 ```
 
 ## Roller
-Köylü, Vampir (4-7 kişi: 1, 8-11: 2, 12+: 3), Doktor, Kâhin. En az 4 oyuncu.
+Köylü, Vampir (4-7 kişi: 1, 8-10: 2, 11+: 3), Hoca (koruyucu), Kâhin. 8 kişiden itibaren Bekçi ve Deli; 11 kişiden itibaren Ağa, Dedikoducu ve iki Âşık. En az 4 oyuncu. Yeni roller ve köy olayları lobiden kapatılabilir.
 
 ## Lisanslar (3B ve ses)
 - Karakterler ve animasyonlar: Quaternius (CC0) — Universal Animation Library, Superhero gövdeleri, köylü kıyafetleri

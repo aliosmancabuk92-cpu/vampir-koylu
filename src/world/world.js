@@ -671,6 +671,10 @@ export const WORLD_CSS = `
 .w3d-lb .nm.dead{opacity:.55;text-decoration:line-through}
 .w3d-lb .nm.sel{background:rgba(160,30,20,.75);border-color:#ffc457;color:#fff}
 .w3d-lb .spk{font:800 12px/1.1 system-ui,sans-serif;color:#1a1208;background:linear-gradient(#ffe0a0,#e8a948);padding:4px 9px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.w3d-lb .bdg.clu{background:rgba(20,16,30,.86);border-color:#ffe2a6;font-size:17px;min-width:32px;height:32px;border-radius:16px;box-shadow:0 0 14px rgba(255,210,120,.55)}
+.w3d-ban{position:absolute;left:50%;top:22%;transform:translate(-50%,-10px);opacity:0;transition:opacity .4s,transform .4s;background:rgba(14,11,22,.82);border:1px solid #ffcf7a;color:#ffe9bd;border-radius:18px;padding:12px 22px;font:800 20px 'Cinzel',Georgia,serif;letter-spacing:.5px;z-index:4;pointer-events:none;white-space:nowrap;text-shadow:0 2px 6px #000}
+.w3d-ban.on{opacity:1;transform:translate(-50%,0)}
+.w3d-ban span{font-size:26px;margin-right:10px}
 .w3d-lb .bdg{font:900 15px/1 system-ui,sans-serif;color:#fff;background:#a3171b;border:2px solid #ffcf7a;min-width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px rgba(255,80,40,.6)}
 .w3d-lb .stc{font:16px/1 system-ui,sans-serif;background:rgba(10,8,12,.62);border:1px solid rgba(255,214,140,.35);border-radius:12px;padding:3px 5px;animation:stcIn .35s ease-out}
 @keyframes stcIn{from{transform:translate(-50%,-60%) scale(.3);opacity:0}to{transform:translate(-50%,-100%) scale(1);opacity:1}}
